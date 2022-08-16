@@ -22,6 +22,17 @@ class Cascade:
 
 		return mainarray
 
+	#prints all of the values in the sudoku board
+	def boardValues(self):
+		valuesarr = []
+
+		for x in range(9):
+			for y in range(9):
+				for num in self.board[x][y]:
+					valuesarr.append(num)
+
+		return valuesarr
+
 	#randomly collapses a cell on the board to a single state
 	def randomCollapse(self, subgrid=random.randint(0, 8), cell=random.randint(0, 8)):
 		#get the values for the subgrid, cell, and state of the cell
@@ -186,4 +197,11 @@ class Cascade:
 #make a cascade instance and generate a random board
 cascade = Cascade()
 solvedboard = cascade.randomCollapse()
+boardvalues = cascade.boardValues()
+
+print("****The Solved Sudoku Board***")
 pprint(solvedboard)
+print("")
+
+print("****The Sudoku Board Values****")
+pprint(boardvalues)
