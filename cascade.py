@@ -28,15 +28,22 @@ class Cascade:
 		randomsubgrid = subgrid
 		randomcell = cell
 
-		print(self.board[randomsubgrid][randomcell])
-
-		randomindex = random.randint(0, len(self.board[randomsubgrid][randomcell])-1)
-		randomstate = self.board[randomsubgrid][randomcell][randomindex]
-		self.board[randomsubgrid][randomcell] = [randomstate]
-
 		#set values for the cell with a single state
 		self.subgrid = randomsubgrid
 		self.cell = randomcell
+
+		#check the solved subgrid, row, and column values to collapse the possibilities of the current cell
+		solvedarray = self.subgridValues() + self.rowValues() + self.columnValues()
+
+		#check the solved cells surrounding this cell to remove impossible states
+		for i in solvedarray:
+			if (i in self.board[randomsubgrid][randomcell] and len(self.board[randomsubgrid][randomcell]) > 1):
+				self.board[randomsubgrid][randomcell].remove(i)
+
+		#randomly select a state for this cell to collapse to
+		randomindex = random.randint(0, len(self.board[randomsubgrid][randomcell])-1)
+		randomstate = self.board[randomsubgrid][randomcell][randomindex]
+		self.board[randomsubgrid][randomcell] = [randomstate]
 		self.state = randomstate
 
 		#collapse the subgrid, row, and column associated with this cell
@@ -71,6 +78,7 @@ class Cascade:
 		for x in range(9):
 			for y in range(9):
 				cellentropy = len(self.board[x][y])
+
 				if (cellentropy < length and cellentropy > 1):
 					subgrid = x
 					cell = y
@@ -84,10 +92,20 @@ class Cascade:
 		else:
 			return subgrid, cell, False
 
+	#a function to return the values of numbers in a subgrid
+	def subgridValues(self):
+		valuesarr = []
+
+		for i in range(9):
+			if (len(self.board[self.subgrid][i]) == 1):
+				valuesarr.append(self.board[self.subgrid][i][0])
+
+		return valuesarr
+
 	#collapses the subgrid of a board based on the state of a single cell
 	def collapseSubgrid(self):
 		for i in range(9):
-			if (not i == self.cell and self.state in self.board[self.subgrid][i] and len(self.board[self.subgrid][i]) > 1):
+			if (i != self.cell and self.state in self.board[self.subgrid][i] and len(self.board[self.subgrid][i]) > 1):
 				self.board[self.subgrid][i].remove(self.state)
 
 
@@ -101,6 +119,20 @@ class Cascade:
 			rowrange = range(6, 9)
 
 		return rowrange
+
+	#a function to return the values of numbers in a row
+	def rowValues(self):
+		subgridrange = self.getrowrange(self.subgrid)
+		cellrange = self.getrowrange(self.cell)
+
+		valuesarr = []
+
+		for s in subgridrange:
+			for c in cellrange:
+				if (len(self.board[s][c]) == 1):
+					valuesarr.append(self.board[s][c][0])
+
+		return valuesarr
 
 	#a function to collapse the possibilities of a row in the board
 	def collapseRow(self):
@@ -124,6 +156,20 @@ class Cascade:
 			columnrange = [2, 5, 8]
 
 		return columnrange
+
+	#a function to return the values of numbers in a column
+	def columnValues(self):
+		subgridcolumn = self.getcolumnrange(self.subgrid)
+		cellcolumn = self.getcolumnrange(self.cell)
+
+		valuesarr = []
+
+		for s in subgridcolumn:
+			for c in cellcolumn:
+				if (len(self.board[s][c]) == 1):
+					valuesarr.append(self.board[s][c][0])
+
+		return valuesarr
 
 	#a function to collapse the possibilities of a column in the board
 	def collapseColumn(self):
