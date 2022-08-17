@@ -2,21 +2,108 @@
 
 from pprint import pprint
 from datetime import date
+from datetime import timedelta
 from dotenv import load_dotenv
 import random
 import os
 import alpaca_trade_api as alpaca_api
+import pandas as pd
 
-#load the environment variables file
-load_dotenv()
+#an organized class for stocks/crypto trading
+class Trader:
+	#initialization of the trader class
+	def __init__(self):
+		#load the environment variables from the .env file
+		load_dotenv()
 
-#get information to use the alpaca api using the os module
-api_secret = os.environ["API_SECRET"]
-api_key = os.environ["API_KEY"]
-base_url = os.environ["BASE_URL"]
+		#set up the alpaca REST client
+		self.alpaca = self.setupAlpaca()
 
-#initialize the REST client for the alpaca api
-alpaca = alpaca_api.REST(api_key, api_secret, base_url)
+		#select a random stock from the s&p 500
+		stocks = self.snp500()
+		randomindex = random.randint(0, len(stocks)-1)
+		currentstock = stocks[randomindex]
+
+		#get the latest bar for this stock
+		stockprice = self.getStockBar(currentstock)
+
+		#print the latest bar data
+		print("Latest bar for", currentstock + ":")
+		print(stockprice)
+		print("")
+
+		#print the closing price to get an accurate price for the stock
+		print("Closing price for", currentstock + ":")
+		print(stockprice.close)
+		print("")
+
+	#a function that sets up the alpaca REST client
+	def setupAlpaca(self):
+		#get information to use the alpaca api using the os module
+		api_secret = os.environ["API_SECRET"]
+		api_key = os.environ["API_KEY"]
+		base_url = os.environ["BASE_URL"]
+
+		#initialize the REST client for the alpaca api
+		alpaca = alpaca_api.REST(api_key, api_secret, base_url)
+
+		return alpaca
+
+	#returns a list of the stocks on the S&P 500 in random order
+	def snp500(self):
+		#get a list of the stocks on the current S&P 500 from wikipedia
+		table = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+
+		#get the raw values of the stock symbols from the wikipedia data
+		df = table[0]
+		symbols = df.loc[:,"Symbol"].values
+
+		#shuffle the values of the stock to make random selections
+		random.shuffle(symbols)
+
+		return symbols
+
+	#gets the current price of a stock based on the symbol
+	def getStockBar(self, symbol):
+		stockprice = self.alpaca.get_latest_bar(symbol)
+
+		return stockprice
+
+	#returns a list of the crypto available on alpaca in random order
+	def cryptoCoins(self):
+		#array of the accepted coin symbols on alpaca
+		coins = [
+			"AAVEUSD",
+			"ALGOUSD",
+			"AVAXUSD",
+			"BATUSD",
+			"BTCUSD",
+			"BCHUSD",
+			"LINKUSD",
+			"DAIUSD",
+			"DOGEUSD",
+			"ETHUSD",
+			"GRTUSD",
+			"LTCUSD",
+			"MKRUSD",
+			"MATICUSD",
+			"NEARUSD",
+			"PAXGUSD",
+			"SHIBUSD",
+			"SOLUSD",
+			"SUSHIUSD",
+			"USDTUSD",
+			"TRXUSD",
+			"UNIUSD",
+			"WBTCUSD",
+			"YFIUSD"
+		]
+
+		#shuffle the coin values for random selections
+		random.shuffle(coins)
+
+		return coins
+
 
 #an organized class for the cascade algorithm
 class Cascade:
@@ -207,6 +294,8 @@ class Cascade:
 			for c in cellcolumn:
 				if (self.state in self.board[s][c] and len(self.board[s][c]) > 1):
 					self.board[s][c].remove(self.state)
+
+trader = Trader()
 
 #make a cascade instance and generate a random board
 cascade = Cascade()
