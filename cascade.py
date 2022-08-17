@@ -18,43 +18,15 @@ class Trader:
 		load_dotenv()
 
 		#set up the alpaca REST client
-		self.alpaca = self.setupAlpaca()
+		self.alpaca, self.alpaca_paper = self.setupAlpaca()
 
 		#select a random stock from the s&p 500
 		stocks = self.snp500()
 		randomindex = random.randint(0, len(stocks)-1)
 		currentstock = stocks[randomindex]
 
-		#get the latest bar for this stock
-		stockprice = self.getStockBar(currentstock)
-
-		#print the latest bar data
-		print("Latest bar for", currentstock + ":")
-		print(stockprice)
-		print("")
-
-		#print the closing price to get an accurate price for the stock
-		print("Closing price for", currentstock + ":")
-		print(stockprice.close)
-		print("")
-
-		#select a random cryptocurrency
-		cryptos = self.cryptoCoins()
-		randomindex = random.randint(0, len(cryptos)-1)
-		currentcrypto = cryptos[randomindex]
-
-		#get the latest bar for this cryptocurrency
-		cryptoprice = self.getCryptoBar(currentcrypto)
-
-		#print the latest bar data
-		print("Latest bar for", currentcrypto + ":")
-		print(cryptoprice)
-		print("")
-
-		#print the closing price of this crypto bar
-		print("Closing price for", currentcrypto + ":")
-		print(cryptoprice.close)
-		print("")
+		print(currentstock)
+		print(self.getStockBar(currentstock).close)
 
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
@@ -62,11 +34,15 @@ class Trader:
 		api_secret = os.environ["API_SECRET"]
 		api_key = os.environ["API_KEY"]
 		base_url = os.environ["BASE_URL"]
+		paper_url = os.environ["PAPER_URL"]
 
 		#initialize the REST client for the alpaca api
 		alpaca = alpaca_api.REST(api_key, api_secret, base_url)
 
-		return alpaca
+		#initialize the paper trading REST client
+		alpaca_paper = alpaca_api.REST(api_key, api_secret, paper_url)
+
+		return alpaca, alpaca_paper
 
 	#returns a list of the stocks on the S&P 500 in random order
 	def snp500(self):
@@ -87,6 +63,26 @@ class Trader:
 		stockprice = self.alpaca.get_latest_bar(symbol)
 
 		return stockprice
+
+	#places an order for a stock
+	def buyStock(self, symbol, money):
+		#check to see if this stock is fractionable
+		fractionable = self.alpaca.get_asset(symbol)
+		fractionable = fractionable.fractionable
+
+		#place an order or return False depending on if the stock is fractional
+		if (fractionable):
+			#place an order for fractional shares
+			return self.alpaca.submit_order(
+				symbol=symbol,
+				notional=money,
+				side="buy",
+				type="market",
+				time_in_force="day"
+			)
+		else:
+			#the stock is not fractionable so it cannot be bought
+			return False
 
 	#returns a list of the crypto available on alpaca in random order
 	def cryptoCoins(self):
