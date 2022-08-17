@@ -2,7 +2,21 @@
 
 from pprint import pprint
 from datetime import date
+from dotenv import load_dotenv
 import random
+import os
+import alpaca_trade_api as alpaca_api
+
+#load the environment variables file
+load_dotenv()
+
+#get information to use the alpaca api using the os module
+api_secret = os.environ["API_SECRET"]
+api_key = os.environ["API_KEY"]
+base_url = os.environ["BASE_URL"]
+
+#initialize the REST client for the alpaca api
+alpaca = alpaca_api.REST(api_key, api_secret, base_url)
 
 #an organized class for the cascade algorithm
 class Cascade:
@@ -204,4 +218,4 @@ pprint(solvedboard)
 print("")
 
 print("****The Sudoku Board Values****")
-pprint(boardvalues)
+print(boardvalues)
