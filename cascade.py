@@ -8,6 +8,7 @@ import random
 import os
 import alpaca_trade_api as alpaca_api
 import pandas as pd
+import inspect
 
 #an organized class for stocks/crypto trading
 class Trader:
@@ -37,6 +38,24 @@ class Trader:
 		print(stockprice.close)
 		print("")
 
+		#select a random cryptocurrency
+		cryptos = self.cryptoCoins()
+		randomindex = random.randint(0, len(cryptos)-1)
+		currentcrypto = cryptos[randomindex]
+
+		#get the latest bar for this cryptocurrency
+		cryptoprice = self.getCryptoBar(currentcrypto)
+
+		#print the latest bar data
+		print("Latest bar for", currentcrypto + ":")
+		print(cryptoprice)
+		print("")
+
+		#print the closing price of this crypto bar
+		print("Closing price for", currentcrypto + ":")
+		print(cryptoprice.close)
+		print("")
+
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
 		#get information to use the alpaca api using the os module
@@ -63,7 +82,7 @@ class Trader:
 
 		return symbols
 
-	#gets the current price of a stock based on the symbol
+	#gets the latest bar of a stock based on the symbol
 	def getStockBar(self, symbol):
 		stockprice = self.alpaca.get_latest_bar(symbol)
 
@@ -103,6 +122,13 @@ class Trader:
 		random.shuffle(coins)
 
 		return coins
+
+	#gets the latest bar of a cryptocurrency based on the symbol and exchange (default exchange is FTX)
+	def getCryptoBar(self, symbol, exchange="FTXU"):
+		#select the latest crypto bar from specified exchange, the exchanges can be coinbase (CBSE), FTX (FTXU), or ErisX (ERSX)
+		cryptoprice = self.alpaca.get_latest_crypto_bar(symbol, exchange)
+
+		return cryptoprice
 
 
 #an organized class for the cascade algorithm
