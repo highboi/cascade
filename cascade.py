@@ -1,16 +1,10 @@
 #this program creates a sudoku board as an array and performs a wave function collapse to generate random numbers
-
-from pprint import pprint
-from datetime import date
-from datetime import timedelta
 from dotenv import load_dotenv
 import random
 import math
 import time
 import os
 import alpaca_trade_api as alpaca_api
-import pandas as pd
-import inspect
 
 #an organized class for stocks/crypto trading
 class Trader:
@@ -46,46 +40,6 @@ class Trader:
 		alpaca_paper = alpaca_api.REST(paper_api_key, paper_api_secret, paper_url)
 
 		return alpaca, alpaca_paper
-
-	#returns a list of the stocks on the S&P 500 in random order
-	def snp500(self):
-		#get a list of the stocks on the current S&P 500 from wikipedia
-		table = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
-
-		#get the raw values of the stock symbols from the wikipedia data
-		df = table[0]
-		symbols = df.loc[:,"Symbol"].values
-
-		#shuffle the values of the stock to make random selections
-		random.shuffle(symbols)
-
-		return symbols
-
-	#gets the latest bar of a stock based on the symbol
-	def getStockBar(self, symbol):
-		stockprice = self.alpaca.get_latest_bar(symbol)
-
-		return stockprice
-
-	#places an order for a stock
-	def buyStock(self, symbol, money):
-		#check to see if this stock is fractionable
-		fractionable = self.alpaca.get_asset(symbol)
-		fractionable = fractionable.fractionable
-
-		#place an order or return False depending on if the stock is fractional
-		if (fractionable):
-			#place an order for fractional shares
-			return self.alpaca.submit_order(
-				symbol=symbol,
-				notional=money,
-				side="buy",
-				type="market",
-				time_in_force="day"
-			)
-		else:
-			#the stock is not fractionable so it cannot be bought
-			return False
 
 	#returns a list of the crypto available on alpaca in random order
 	def cryptoCoins(self):
@@ -203,8 +157,13 @@ class Trader:
 
 		#get the current positions of this account and make a list of the symbols of these positions
 		positions = self.alpaca.list_positions()
+
 		crypto_positions = []
 		for pos in positions:
+			print(pos.symbol)
+			print("Unrealized profit/loss:", pos.unrealized_pl)
+			print()
+
 			crypto_positions.append(pos.symbol)
 
 		#get the amount of cash available for the alpaca account
@@ -250,6 +209,33 @@ class Trader:
 			#break the loop if there are no more cryptos to buy/sell
 			if (not len(coins)):
 				break
+
+	#a function that sells crypto positions based on unrealized profit/loss
+	def sellProfitCrypto(self):
+		#get the current crypto positions
+		positions = self.alpaca.list_positions()
+
+		#loop through current crypto positions
+		for pos in positions:
+			#get the profit/loss as a float
+			profit = float(pos.unrealized_pl)
+
+			print(pos.symbol + ":")
+			print("Profit/Loss:", profit)
+
+			#if there is a profit, sell the position
+			if (profit > 0):
+				#sell the crypto
+				order = self.sellCrypto(pos.symbol)
+
+				#print order information
+				if (order):
+					print(order.side)
+					print(order.qty)
+				else:
+					print("Not sold, too little to sell.")
+
+			print()
 
 	#a function that sells all crypto positions
 	def sellAllCrypto(self):
@@ -475,6 +461,9 @@ def main():
 
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader = Trader(True)
+
+	#sell profitable crypto positions first
+	trader.sellProfitCrypto()
 
 	#randomly buy and sell crypto
 	trader.cascadeCrypto(boardvalues)
