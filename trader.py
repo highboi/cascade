@@ -172,10 +172,10 @@ class Trader:
 			print(coin + ":")
 
 			#if the number is less than 4, buy the crypto
-			if (value < 4):
+			if (value < 5):
 				print("Buying shares with alloted cash...")
 				order = self.buyCrypto(coin, cash_alloted)
-			elif (value > 4 and coin in crypto_positions): #if the number is more than 4, sell the crypto
+			elif (value > 5 and coin in crypto_positions): #if the number is more than 4, sell the crypto
 				print("Selling all shares in current position...")
 				order = self.sellCrypto(coin)
 
