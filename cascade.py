@@ -196,6 +196,85 @@ class Trader:
 			#return false if this is not a currently held position
 			return False
 
+	#a function that randomly buys and sells crypto based on the sudoku board values
+	def cascadeCrypto(self, numbers):
+		#get a random list of crypto coins
+		coins = self.cryptoCoins()
+
+		#get the current positions of this account and make a list of the symbols of these positions
+		positions = self.alpaca.list_positions()
+		crypto_positions = []
+		for pos in positions:
+			crypto_positions.append(pos.symbol)
+
+		#get the amount of cash available for the alpaca account
+		cash = self.alpaca.get_account().cash
+
+		#get the amount of cash available for each buy/sell decision
+		cash_alloted = float(cash)/len(coins)
+
+		#loop through the board values to make random decisions
+		for value in numbers:
+			#get the current coin to buy/sell
+			coin = coins[0]
+			print(coin + ":")
+
+			#if the number is less than 4, buy the crypto
+			if (value < 4):
+				print("Buying shares with alloted cash...")
+				order = self.buyCrypto(coin, cash_alloted)
+			elif (value > 4 and coin in crypto_positions): #if the number is more than 4, sell the crypto
+				print("Selling all shares in current position...")
+				order = self.sellCrypto(coin)
+			else: #if the number is 4, then buy crypto with half of the alloted cash
+				print("Buying shares with 1/2 of alloted cash...")
+				order = self.buyCrypto(coin, cash_alloted/2)
+
+			#check to see if the order was carried out
+			if (order):
+				#print the order
+				print(order.side)
+				if (order.side == "buy"):
+					print("$" + str(order.notional))
+				elif (order.side == "sell"):
+					print(str(order.qty))
+			else:
+				print("Order not carried out.")
+
+			#print newline for organization
+			print()
+
+			#remove this coin from the list to move onto the next coin
+			coins.remove(coin)
+
+			#break the loop if there are no more cryptos to buy/sell
+			if (not len(coins)):
+				break
+
+	#a function that sells all crypto positions
+	def sellAllCrypto(self):
+		#get the current positions of this account and make a list of the symbols of these positions
+		positions = self.alpaca.list_positions()
+		crypto_positions = []
+		for pos in positions:
+			crypto_positions.append(pos.symbol)
+
+		#loop through the currently held positions and sell
+		for symbol in crypto_positions:
+			print("Selling", symbol + "...")
+
+			#sell the crypto
+			order = self.sellCrypto(symbol)
+
+			#print out order information
+			if (order):
+				print(order.side)
+				print(order.qty)
+			else:
+				print("Not sold, too little to sell.")
+
+			print()
+
 
 #an organized class for the cascade algorithm
 class Cascade:
@@ -397,58 +476,11 @@ def main():
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader = Trader(True)
 
-	#get a random list of crypto coins
-	coins = trader.cryptoCoins()
+	#randomly buy and sell crypto
+	trader.cascadeCrypto(boardvalues)
 
-	#get the current positions of this account and make a list of the symbols of these positions
-	positions = trader.alpaca.list_positions()
-	crypto_positions = []
-	for pos in positions:
-		crypto_positions.append(pos.symbol)
-
-	#get the amount of cash available for the alpaca account
-	cash = trader.alpaca.get_account().cash
-
-	#get the amount of cash available for each buy/sell decision
-	cash_alloted = float(cash)/len(coins)
-
-	#loop through the board values to make random decisions
-	for value in boardvalues:
-		#get the current coin to buy/sell
-		coin = coins[0]
-		print(coin + ":")
-
-		#if the number is less than 4, buy the crypto
-		if (value < 4):
-			print("Buying shares with alloted cash...")
-			order = trader.buyCrypto(coin, cash_alloted)
-		elif (value > 4 and coin in crypto_positions): #if the number is more than 4, sell the crypto
-			print("Selling all shares in current position...")
-			order = trader.sellCrypto(coin)
-		else: #if the number is 4, then buy crypto with half of the alloted cash
-			print("Buying shares with 1/2 of alloted cash...")
-			order = trader.buyCrypto(coin, cash_alloted/2)
-
-		#check to see if the order was carried out
-		if (order):
-			#print the order
-			print(order.side)
-			if (order.side == "buy"):
-				print("$" + str(order.notional))
-			elif (order.side == "sell"):
-				print(str(order.qty))
-		else:
-			print("Order not carried out.")
-
-		#print newline for organization
-		print()
-
-		#remove this coin from the list to move onto the next coin
-		coins.remove(coin)
-
-		#break the loop if there are no more cryptos to buy/sell
-		if (not len(coins)):
-			break
+	#sell all crypto positions
+	#trader.sellAllCrypto()
 
 #execute the main program
 main()
