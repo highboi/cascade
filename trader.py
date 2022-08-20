@@ -39,6 +39,44 @@ class Trader:
 
 		return alpaca, alpaca_paper
 
+
+	#returns a list of the stocks on the S&P 500 in random order
+	def snp500(self):
+		#get a list of the stocks on the current S&P 500 from wikipedia
+		table = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
+		#get the raw values of the stock symbols from the wikipedia data
+		df = table[0]
+		symbols = df.loc[:,"Symbol"].values
+		#shuffle the values of the stock to make random selections
+		random.shuffle(symbols)
+		return symbols
+
+	#gets the latest bar of a stock based on the symbol
+	def getStockBar(self, symbol):
+		stockprice = self.alpaca.get_latest_bar(symbol)
+
+		return stockprice
+
+	#places an order for a stock
+	def buyStock(self, symbol, money):
+		#check to see if this stock is fractionable
+		fractionable = self.alpaca.get_asset(symbol)
+		fractionable = fractionable.fractionable
+
+		#place an order or return False depending on if the stock is fractional
+		if (fractionable):
+			#place an order for fractional shares
+			return self.alpaca.submit_order(
+				symbol=symbol,
+				notional=money,
+				side="buy",
+				type="market",
+				time_in_force="day"
+			)
+		else:
+			#the stock is not fractionable so it cannot be bought
+			return False
+
 	#returns a list of the crypto available on alpaca in random order
 	def cryptoCoins(self):
 		#array of the accepted coin symbols on alpaca
