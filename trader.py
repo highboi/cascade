@@ -59,12 +59,45 @@ class Trader:
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
-		print(data)
+		#get a list of the current stock positions
+		positions = self.alpaca.list_positions()
+		stock_positions = []
+		for pos in positions:
+			stock_positions.append(pos.symbol)
+
+		#check to see if this symbol/ticker is available to sell/buy
+		if (data.symbol in stock_positions):
+			#get the current position for this symbol/ticker
+			position = self.alpaca.get_position(data.symbol)
+			print(position)
+
+			#get the unrealized profit/loss of this position
+			profit = float(position.unrealized_pl)
+
+			print("Profit/loss:", profit)
+
+			#sell the stock or hold depending on the state of the profit/loss
+			if (profit >= self.stock_cap):
+				print("Liquidating position for a $", profit, " increase.")
+				self.sellStock(data.symbol)
+			elif (profit <= -self.stock_bottom):
+				print("Liquidating position to keep losses at $", profit, ".")
+				self.sellStock(data.symbol)
+			else:
+				print("Holding position for", data.symbol + "...")
+		else:
+			print("No position for", data.symbol)
 
 	#a function that gets live market data for a stock
-	def subscribeStock(self, symbol):
+	def subscribeStock(self, symbol, cap=1, bottom=5):
+		#set values for the cap and bottom values for selling a stock
+		self.stock_cap = cap
+		self.stock_bottom = bottom
+
+		#subscribe to the live stream of stock bar data
 		self.stream.subscribe_bars(self.stockCallback, symbol)
 
+		#run the stream to receive live data
 		self.stream.run()
 
 	#returns a list of the stocks on the S&P 500 in random order
@@ -273,6 +306,7 @@ class Trader:
 
 		#loop through the stocks and place short orders for these stocks
 		for stock in stocks:
+			#create a short order for this stock using the alloted amount of cash
 			order = self.alpaca.submit_order(
 				symbol=symbol,
 				notional=cash_alloted,
@@ -299,30 +333,37 @@ class Trader:
 
 		#act based on if this ticker is a held position
 		if (data.symbol in crypto_positions):
+			#get the current position for this symbol/ticker
 			position = self.alpaca.get_position(data.symbol)
 			print(position)
 
+			#get the unrealized profit/loss for this symbol/ticker
 			profit = float(position.unrealized_pl)
 
 			print("Profit/loss:", profit)
 
-			if (profit >= 1):
+			#sell or hold depending on the crypto cap or bottom
+			if (profit >= self.crypto_cap):
 				print("Liquidating position for a $", profit, " increase.")
 				self.sellCrypto(data.symbol)
-			elif (profit <= -5):
+			elif (profit <= -self.crypto_bottom):
 				print("Liquidating position to keep losses at $", profit, ".")
 				self.sellCrypto(data.symbol)
 			else:
-				print("Holding position...")
+				print("Holding position for", data.symbol + "...")
 		else:
 			print("No position for:", data.symbol)
 
 	#a function that gets live market data for a cryptocurrency
-	def subscribeCrypto(self, symbol):
-		coins = self.cryptoCoins()
+	def subscribeCrypto(self, symbol, cap=1, bottom=5):
+		#set the cap and bottom for selling this cryptocurrency
+		self.crypto_cap = cap
+		self.crypto_bottom = bottom
 
+		#subscribe to the data stream of crypto bars
 		self.stream.subscribe_crypto_bars(self.cryptoCallback, symbol)
 
+		#run the stream to start receiving live data
 		self.stream.run()
 
 	#returns a list of the crypto available on alpaca in random order

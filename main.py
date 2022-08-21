@@ -18,9 +18,8 @@ def main():
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
 
+	#subscribe to a live data stream of crypto bars for day trading
 	#trader_person.subscribeCrypto("BTCUSD")
-
-	#trader_person.getBiotech()
 
 	#sell profitable crypto positions
 	#trader_person.sellProfitCrypto()
