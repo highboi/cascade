@@ -6,6 +6,7 @@ the random numbers are then used to make buying/selling decisions on crypto posi
 #import custom modules for the wave function collapse and the crypto trading functions
 import cascade
 import trader
+import time
 
 #main function to execute the entire trading program
 def main():
@@ -16,6 +17,10 @@ def main():
 
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
+
+	#trader_person.subscribeCrypto("BTCUSD", trader_person.cryptoCallback)
+
+	#trader_person.getBiotech()
 
 	#sell profitable crypto positions
 	#trader_person.sellProfitCrypto()
@@ -30,7 +35,7 @@ def main():
 	#trader_person.sellProfitStocks()
 
 	#randomly buy and sell stocks
-	trader_person.cascadeStocks(boardvalues)
+	#trader_person.cascadeStocks(boardvalues)
 
 	#sell all stock positions
 	#trader_person.sellAllStocks()

@@ -1,4 +1,6 @@
 from dotenv import load_dotenv
+from alpaca_trade_api.common import URL
+from alpaca_trade_api.stream import Stream
 import random
 import math
 import os
@@ -21,6 +23,13 @@ class Trader:
 		else:
 			self.alpaca = client
 
+		#initiate an instance of stream for getting live market data
+		self.stream = Stream(
+				self.alpaca._key_id,
+				self.alpaca._secret_key,
+				base_url=self.alpaca._base_url,
+				data_feed="iex")
+
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
 		#get information to use the alpaca api using the os module
@@ -40,6 +49,23 @@ class Trader:
 
 		return alpaca, alpaca_paper
 
+	#a function to get the portfolio value of the account
+	def getPortfolioValue(self):
+		account = self.alpaca.get_account()
+
+		print(account)
+
+		return account.portfolio_value
+
+	#the callback function for the live stock data
+	async def stockCallback(self, data):
+		print(data)
+
+	#a function that gets live market data for a stock
+	def subscribeStock(self, symbol, callback):
+		self.stream.subscribe_bars(callback, symbol)
+
+		self.stream.run()
 
 	#returns a list of the stocks on the S&P 500 in random order
 	def snp500(self):
@@ -240,6 +266,41 @@ class Trader:
 
 			print()
 
+	#the callback function for live crypto data
+	async def cryptoCallback(self, data):
+		#get all currently held crypto position tickers/symbols
+		positions = self.alpaca.list_positions()
+		crypto_positions = []
+		for pos in positions:
+			crypto_positions.append(pos.symbol)
+
+		#act based on if this ticker is a held position
+		if (data.symbol in crypto_positions):
+			position = self.alpaca.get_position(data.symbol)
+			print(position)
+
+			profit = float(position.unrealized_pl)
+
+			print("Profit/loss:", profit)
+
+			if (profit >= 1):
+				print("Liquidating position for a $", profit, " increase.")
+				self.sellCrypto(data.symbol)
+			elif (profit <= -5):
+				print("Liquidating position to keep losses at $", profit, ".")
+				self.sellCrypto(data.symbol)
+			else:
+				print("Holding position...")
+		else:
+			print("No position for:", data.symbol)
+
+	#a function that gets live market data for a cryptocurrency
+	def subscribeCrypto(self, symbol, callback):
+		coins = self.cryptoCoins()
+
+		self.stream.subscribe_crypto_bars(callback, symbol)
+
+		self.stream.run()
 
 	#returns a list of the crypto available on alpaca in random order
 	def cryptoCoins(self):
@@ -304,7 +365,7 @@ class Trader:
 			)
 		else:
 			#return false if this order is too small to be carried out
-			return false
+			return False
 
 	#places an order to sell all cryptocurrency in a position
 	def sellCrypto(self, symbol):
