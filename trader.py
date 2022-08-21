@@ -62,8 +62,8 @@ class Trader:
 		print(data)
 
 	#a function that gets live market data for a stock
-	def subscribeStock(self, symbol, callback):
-		self.stream.subscribe_bars(callback, symbol)
+	def subscribeStock(self, symbol):
+		self.stream.subscribe_bars(self.stockCallback, symbol)
 
 		self.stream.run()
 
@@ -156,10 +156,7 @@ class Trader:
 			return False
 
 	#a function that randomly buys and sells stocks based on the sudoku board values
-	def cascadeStocks(self, numbers):
-		#get a random list of stocks
-		stocks = self.snp500()
-
+	def cascadeStocks(self, numbers, stocks=self.snp500()):
 		#get the current positions of this account and make a list of the symbols of these positions
 		positions = self.alpaca.list_positions()
 		stock_positions = []
@@ -266,6 +263,32 @@ class Trader:
 
 			print()
 
+	#a function for short selling a list of stocks (such as biotech stocks)
+	def shortStocks(self, stocks):
+		#get the amount of cash available on the account and divide it by 2
+		cash = float(self.alpaca.get_account().cash)/2
+
+		#divide the cash evenly into each of the stocks
+		cash_alloted = cash / len(stocks)
+
+		#loop through the stocks and place short orders for these stocks
+		for stock in stocks:
+			order = self.alpaca.submit_order(
+				symbol=symbol,
+				notional=cash_alloted,
+				side="sell",
+				type="market",
+				time_in_force="day"
+			)
+
+			#print out order information
+			if (order):
+				print("Shorted", stock)
+			else:
+				print("Could not carry out short order.")
+
+			print()
+
 	#the callback function for live crypto data
 	async def cryptoCallback(self, data):
 		#get all currently held crypto position tickers/symbols
@@ -295,10 +318,10 @@ class Trader:
 			print("No position for:", data.symbol)
 
 	#a function that gets live market data for a cryptocurrency
-	def subscribeCrypto(self, symbol, callback):
+	def subscribeCrypto(self, symbol):
 		coins = self.cryptoCoins()
 
-		self.stream.subscribe_crypto_bars(callback, symbol)
+		self.stream.subscribe_crypto_bars(self.cryptoCallback, symbol)
 
 		self.stream.run()
 

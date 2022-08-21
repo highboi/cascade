@@ -18,7 +18,7 @@ def main():
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
 
-	#trader_person.subscribeCrypto("BTCUSD", trader_person.cryptoCallback)
+	#trader_person.subscribeCrypto("BTCUSD")
 
 	#trader_person.getBiotech()
 
