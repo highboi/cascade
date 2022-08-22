@@ -165,29 +165,16 @@ class Trader:
 			current_position = self.alpaca.get_position(symbol)
 			quantity = current_position.qty
 
-			#get the trade increment for this order to work
-			stock_asset = self.alpaca.get_asset(symbol)
-			min_trade_increment =  stock_asset.min_trade_increment
-
-			#create a quantity that is based on the minimum trade increment in order for the selling to work
-			increment_amount = math.floor(float(quantity)/float(min_trade_increment))
-			quantity = int(increment_amount) * float(min_trade_increment)
-
 			print("Selling", quantity, "stock shares")
 
-			#the quantity to order must be more than the minimum order amount for it to process
-			if (float(quantity)):
-				#return an order for selling a stock
-				return self.alpaca.submit_order(
-					symbol=symbol,
-					qty=quantity,
-					side="sell",
-					type="market",
-					time_in_force="gtc"
-				)
-			else:
-				#return false if the quantity is not processable
-				return False
+			#return an order for selling a stock
+			return self.alpaca.submit_order(
+				symbol=symbol,
+				qty=quantity,
+				side="sell",
+				type="market",
+				time_in_force="day"
+			)
 		else:
 			#return false if this stock is not a currently held position
 			return False
