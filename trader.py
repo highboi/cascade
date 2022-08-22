@@ -179,6 +179,14 @@ class Trader:
 			#return false if this stock is not a currently held position
 			return False
 
+	#a function that implements a buy-low sell-high strategy for stocks
+	def lohiStocks(self, symbol):
+		#get the stock in question
+		stock = self.alpaca.get_asset(symbol)
+
+		#get the bars of the stock for the past week
+		#stock_bars = self.alpaca.get_bars(symbol, )
+
 	#a function that randomly buys and sells stocks based on the sudoku board values
 	def cascadeStocks(self, numbers, hold=False, stocks=0):
 		#if there is no list of stocks given, get random S&P 500 stocks
@@ -419,9 +427,21 @@ class Trader:
 	def buyCrypto(self, symbol, money):
 		#get the price of the coin and the minimum quantity for an order to work
 		cryptoprice = self.getCryptoBar(symbol).close
-		min_order = self.alpaca.get_asset(symbol).min_order_size
+		crypto_asset = self.alpaca.get_asset(symbol)
+		min_order = crypto_asset.min_order_size
+		min_trade_increment = crypto_asset.min_trade_increment
 
-		print("Quantity to Buy:", float(money)/float(cryptoprice))
+		print("Quantity Information:")
+		print(min_order)
+		print(min_trade_increment)
+
+		#get the quantity that the alloted money can buy
+		quantity = float(money) / float(cryptoprice)
+
+		#do floor division of the quantity against the minimum trade increment to ensure 100% liquidity
+		quantity = float(quantity) // float(min_trade_increment)
+
+		print("Quantity to Buy:", quantity)
 
 		#if the quantity is larger than the minimum order number, order crypto
 		if (float(money)/float(cryptoprice) >= float(min_order)):
@@ -459,7 +479,7 @@ class Trader:
 			min_trade_increment =  crypto_asset.min_trade_increment
 
 			#create a quantity that is based on the minimum trade increment in order for the selling to work
-			increment_amount = math.floor(float(quantity)/float(min_trade_increment))
+			increment_amount = float(quantity) // float(min_trade_increment)
 			quantity = int(increment_amount) * float(min_trade_increment)
 
 			print("Quantity to Sell:", quantity)
