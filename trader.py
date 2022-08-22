@@ -189,15 +189,18 @@ class Trader:
 			return False
 
 	#a function that randomly buys and sells stocks based on the sudoku board values
-	def cascadeStocks(self, numbers, stocks=self.snp500()):
+	def cascadeStocks(self, numbers, stocks=0):
+		if (not stocks):
+			stocks = self.snp500()
+
 		#get the current positions of this account and make a list of the symbols of these positions
 		positions = self.alpaca.list_positions()
 		stock_positions = []
 		for pos in positions:
 			stock_positions.append(pos.symbol)
 
-		#get the amount of cash available for the alpaca account and set half aside for buying positions
-		cash = float(self.alpaca.get_account().cash)/2
+		#get the amount of cash available for the alpaca account
+		cash = float(self.alpaca.get_account().cash)
 
 		#get the amount of cash available for each buy/sell decision
 		cash_alloted = float(cash)/len(stocks)
@@ -298,8 +301,8 @@ class Trader:
 
 	#a function for short selling a list of stocks (such as biotech stocks)
 	def shortStocks(self, stocks):
-		#get the amount of cash available on the account and divide it by 2
-		cash = float(self.alpaca.get_account().cash)/2
+		#get the amount of cash available on the account
+		cash = float(self.alpaca.get_account().cash)
 
 		#divide the cash evenly into each of the stocks
 		cash_alloted = cash / len(stocks)
@@ -486,8 +489,8 @@ class Trader:
 		for pos in positions:
 			crypto_positions.append(pos.symbol)
 
-		#get the amount of cash available for the alpaca account and set half aside for buying positions
-		cash = float(self.alpaca.get_account().cash)/2
+		#get the amount of cash available for the alpaca account
+		cash = float(self.alpaca.get_account().cash)
 
 		#get the amount of cash available for each buy/sell decision
 		cash_alloted = float(cash)/len(coins)

@@ -28,7 +28,7 @@ def main():
 	#trader_person.cascadeCrypto(boardvalues)
 
 	#sell all crypto positions
-	#trader_person.sellAllCrypto()
+	trader_person.sellAllCrypto()
 
 	#sell profitable stock positions
 	#trader_person.sellProfitStocks()
