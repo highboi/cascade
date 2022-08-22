@@ -425,21 +425,29 @@ class Trader:
 
 	#places an order for a cryptocurrency
 	def buyCrypto(self, symbol, money):
-		#get the price of the coin and the minimum quantity for an order to work
+		#get the price of one full coin
 		cryptoprice = self.getCryptoBar(symbol).close
+
+		#get information about this crypto asset
 		crypto_asset = self.alpaca.get_asset(symbol)
 		min_order = crypto_asset.min_order_size
 		min_trade_increment = crypto_asset.min_trade_increment
 
+		#calculate the crypto price of the minimum trade increment
+		increment_price = float(cryptoprice) * float(min_trade_increment)
+
+		print("Price:", cryptoprice)
+		print("Money:", money)
+		print("Increment_price:", increment_price)
 		print("Quantity Information:")
-		print(min_order)
-		print(min_trade_increment)
+		print("Minimum Order Amount:", min_order)
+		print("Minimum Trade Increment:", min_trade_increment)
 
-		#get the quantity that the alloted money can buy
-		quantity = float(money) / float(cryptoprice)
+		#set the amount of increments this money can buy
+		quantity = float(money) // float(increment_price)
 
-		#do floor division of the quantity against the minimum trade increment to ensure 100% liquidity
-		quantity = float(quantity) // float(min_trade_increment)
+		#set the quantity according to the minimum trade increment (ensures 100% liquidity)
+		quantity = float(quantity) * float(min_trade_increment)
 
 		print("Quantity to Buy:", quantity)
 
