@@ -180,7 +180,7 @@ class Trader:
 			return False
 
 	#a function that randomly buys and sells stocks based on the sudoku board values
-	def cascadeStocks(self, numbers, stocks=0):
+	def cascadeStocks(self, numbers, hold=False, stocks=0):
 		#if there is no list of stocks given, get random S&P 500 stocks
 		if (not stocks):
 			stocks = self.snp500()
@@ -211,13 +211,19 @@ class Trader:
 				print("Buying shares with alloted cash...")
 				order = self.buyStock(stock, cash_alloted)
 			elif (value > 5 and stock in stock_positions): #if the number is more than 4, sell the crypto
-				print("Selling all shares in current position...")
-				order = self.sellStock(stock)
+				#check to see if the function is supposed to sell positions
+				if (not hold):
+					print("Selling all shares in current position...")
+					order = self.sellStock(stock)
 
-				#if the selling does not work, buy more of this crypto
-				if (not order):
-					print("Too little shares to sell, buying more shares...")
+					#if the selling does not work, buy more of this stock
+					if (not order):
+						print("Too little shares to sell, buying more shares...")
+						order = self.buyStock(stock, cash_alloted)
+				else: #the algorithm is supposed to hold/buy positions only
+					print("Buying shares with alloted cash...")
 					order = self.buyStock(stock, cash_alloted)
+
 			else: #if the number is 4, then buy crypto with half of the alloted cash
 				print("Buying shares with 1/2 of alloted cash...")
 				order = self.buyStock(stock, cash_alloted/2)
@@ -476,7 +482,7 @@ class Trader:
 			return False
 
 	#a function that randomly buys and sells crypto based on the sudoku board values
-	def cascadeCrypto(self, numbers):
+	def cascadeCrypto(self, numbers, hold=False):
 		#get a random list of crypto coins
 		coins = self.cryptoCoins()
 
@@ -503,12 +509,17 @@ class Trader:
 				print("Buying shares with alloted cash...")
 				order = self.buyCrypto(coin, cash_alloted)
 			elif (value > 5 and coin in crypto_positions): #if the number is more than 4, sell the crypto
-				print("Selling all shares in current position...")
-				order = self.sellCrypto(coin)
+				#check to see if the algorithm is supposed to sell positions
+				if (not hold):
+					print("Selling all shares in current position...")
+					order = self.sellCrypto(coin)
 
-				#if the selling does not work, buy more of this crypto
-				if (not order):
-					print("Too little shares to sell, buying more shares...")
+					#if the selling does not work, buy more of this crypto
+					if (not order):
+						print("Too little shares to sell, buying more shares...")
+						order = self.buyCrypto(coin, cash_alloted)
+				else: #the algorithm is supposed to hold/buy positions only
+					print("Buying shares with alloted cash...")
 					order = self.buyCrypto(coin, cash_alloted)
 			else: #if the number is 4, then buy crypto with half of the alloted cash
 				print("Buying shares with 1/2 of alloted cash...")
