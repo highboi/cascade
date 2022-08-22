@@ -114,8 +114,6 @@ class Trader:
 		for sym in symbols:
 			stocks.append(sym)
 
-		print(len(stocks))
-
 		#shuffle the values of the stock to make random selections
 		random.shuffle(stocks)
 		return stocks
@@ -128,12 +126,17 @@ class Trader:
 
 	#places an order for a stock
 	def buyStock(self, symbol, money):
+		#get the price of the stock
+		stockprice = self.getStockBar(symbol).close
+
+		print("Quantity to Buy:", float(money)/float(stockprice))
+
 		#check to see if this stock is fractionable
 		fractionable = self.alpaca.get_asset(symbol)
 		fractionable = fractionable.fractionable
 
 		#place an order or return False depending on if the stock is fractional
-		if (fractionable):
+		if (fractionable and float(money) >= 1.00):
 			#place an order for fractional shares
 			return self.alpaca.submit_order(
 				symbol=symbol,
@@ -162,17 +165,18 @@ class Trader:
 			current_position = self.alpaca.get_position(symbol)
 			quantity = current_position.qty
 
-			#get the minimum order size and trade increment for this order to work
+			#get the trade increment for this order to work
 			stock_asset = self.alpaca.get_asset(symbol)
-			min_order = stock_asset.min_order_size
 			min_trade_increment =  stock_asset.min_trade_increment
 
 			#create a quantity that is based on the minimum trade increment in order for the selling to work
 			increment_amount = math.floor(float(quantity)/float(min_trade_increment))
 			quantity = int(increment_amount) * float(min_trade_increment)
 
+			print("Selling", quantity, "stock shares")
+
 			#the quantity to order must be more than the minimum order amount for it to process
-			if (float(quantity) >= float(min_order)):
+			if (float(quantity)):
 				#return an order for selling a stock
 				return self.alpaca.submit_order(
 					symbol=symbol,
@@ -190,8 +194,12 @@ class Trader:
 
 	#a function that randomly buys and sells stocks based on the sudoku board values
 	def cascadeStocks(self, numbers, stocks=0):
+		#if there is no list of stocks given, get random S&P 500 stocks
 		if (not stocks):
 			stocks = self.snp500()
+
+			#get the first 10 random stocks to trade
+			stocks = stocks[:10]
 
 		#get the current positions of this account and make a list of the symbols of these positions
 		positions = self.alpaca.list_positions()
@@ -281,7 +289,9 @@ class Trader:
 		positions = self.alpaca.list_positions()
 		stock_positions = []
 		for pos in positions:
-			stock_positions.append(pos.symbol)
+			#make sure this is a stock position
+			if (pos.asset_class == "us_equity"):
+				stock_positions.append(pos.symbol)
 
 		#loop through the currently held positions and sell
 		for symbol in stock_positions:
@@ -311,7 +321,7 @@ class Trader:
 		for stock in stocks:
 			#create a short order for this stock using the alloted amount of cash
 			order = self.alpaca.submit_order(
-				symbol=symbol,
+				symbol=stock,
 				notional=cash_alloted,
 				side="sell",
 				type="market",
@@ -571,7 +581,9 @@ class Trader:
 		positions = self.alpaca.list_positions()
 		crypto_positions = []
 		for pos in positions:
-			crypto_positions.append(pos.symbol)
+			#check to make sure this is not a stock position
+			if (pos.asset_class != "us_equity"):
+				crypto_positions.append(pos.symbol)
 
 		#loop through the currently held positions and sell
 		for symbol in crypto_positions:
