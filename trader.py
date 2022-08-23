@@ -77,52 +77,6 @@ class Trader:
 		#return the account
 		return account
 
-	#a function to get a set of bars for a stock for analysis
-	def getStockBars(self, symbol, unit="hour", timeamount=1):
-		#get the current time in the form of a UTC timestamp and make start and end variables
-		start = datetime.now()
-		start = start.timestamp()
-		end = start
-
-		#get the value of different units of time in seconds
-		minute = 60
-		hour = minute*60
-		day = hour*24
-		week = day*7
-		month = week*4
-		year = month*12
-
-		#get the starting timestamp based on the time unit and amount of time to go back
-		if (unit == "minute"):
-			start = start - (minute*timeamount)
-		elif (unit == "hour"):
-			start = start - (hour*timeamount)
-		elif (unit == "day"):
-			start = start - (day*timeamount)
-		elif (unit == "week"):
-			start = start - (week*timeamount)
-		elif (unit == "month"):
-			start = start - (month*timeamount)
-		elif (unit == "year"):
-			start = start - (year*timeamount)
-
-		#make the starting timestamp into an iso timestamp
-		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
-
-		#make the ending timestamp 15 minutes ago (free subscription does not allow more recent data) and convert to iso timestamp
-		end = end - (15*minute)
-		end = str(datetime.fromtimestamp(end).isoformat())+"Z"
-
-		#get bars for stocks
-		bars = self.alpaca.get_bars_iter(symbol, TimeFrame.Hour, start, end, adjustment="raw")
-
-		#print out the bars for the stocks
-		for bar in bars:
-			print(bar)
-
-		#return the iterable bars
-		return bars
-
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
 		#get a list of the current stock positions
@@ -189,6 +143,52 @@ class Trader:
 		stockprice = self.alpaca.get_latest_bar(symbol)
 
 		return stockprice
+
+	#a function to get a set of bars for a stock for analysis
+	def getStockBars(self, symbol, unit="hour", timeamount=1):
+		#get the current time in the form of a UTC timestamp and make start and end variables
+		start = datetime.now()
+		start = start.timestamp()
+		end = start
+
+		#get the value of different units of time in seconds
+		minute = 60
+		hour = minute*60
+		day = hour*24
+		week = day*7
+		month = week*4
+		year = month*12
+
+		#get the starting timestamp based on the time unit and amount of time to go back
+		if (unit == "minute"):
+			start = start - (minute*timeamount)
+		elif (unit == "hour"):
+			start = start - (hour*timeamount)
+		elif (unit == "day"):
+			start = start - (day*timeamount)
+		elif (unit == "week"):
+			start = start - (week*timeamount)
+		elif (unit == "month"):
+			start = start - (month*timeamount)
+		elif (unit == "year"):
+			start = start - (year*timeamount)
+
+		#make the starting timestamp into an iso timestamp
+		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
+
+		#make the ending timestamp 15 minutes ago (free subscription does not allow more recent data) and convert to iso timestamp
+		end = end - (15*minute)
+		end = str(datetime.fromtimestamp(end).isoformat())+"Z"
+
+		#get bars for stocks
+		bars = self.alpaca.get_bars_iter(symbol, TimeFrame.Hour, start, end, adjustment="raw")
+
+		#print out the bars for the stocks
+		for bar in bars:
+			print(bar)
+
+		#return the iterable bars
+		return bars
 
 	#places an order for a stock
 	def buyStock(self, symbol, money):
