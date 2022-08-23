@@ -24,8 +24,8 @@ def main():
 	#sell profitable crypto positions
 	#trader_person.sellProfitCrypto()
 
-	#randomly buy and sell crypto
-	trader_person.cascadeCrypto(boardvalues)
+	#randomly buy crypto (with no selling)
+	trader_person.cascadeCrypto(boardvalues, True)
 
 	#sell all crypto positions
 	#trader_person.sellAllCrypto()

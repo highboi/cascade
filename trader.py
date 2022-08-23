@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 from alpaca_trade_api.common import URL
 from alpaca_trade_api.stream import Stream
+from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
+from datetime import date
 import random
 import math
 import os
@@ -30,6 +32,9 @@ class Trader:
 				base_url=self.alpaca._base_url,
 				data_feed="iex")
 
+		#print out the current portfolio info
+		self.getPortfolio()
+
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
 		#get information to use the alpaca api using the os module
@@ -50,12 +55,20 @@ class Trader:
 		return alpaca, alpaca_paper
 
 	#a function to get the portfolio value of the account
-	def getPortfolioValue(self):
+	def getPortfolio(self):
+		#get the current alpaca account
 		account = self.alpaca.get_account()
 
-		print(account)
+		#print important account info
+		print("Account Info:")
+		print("Portfolio Value:", account.portfolio_value)
+		print("Equity:", account.equity)
+		print("Long Market Value (Value of Stocks):", account.long_market_value)
+		print("Cash:", account.cash)
+		print()
 
-		return account.portfolio_value
+		#return the account
+		return account
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
@@ -124,6 +137,14 @@ class Trader:
 
 		return stockprice
 
+	#gets stock bar data
+	def getStockBars(self, symbol):
+		bar_iter = self.alpaca.get_bars_iter(symbol, TimeFrame(45, TimeFrameUnit.Minute), date.today(), date.today(), adjustment="raw")
+
+		for bar in bar_iter:
+			print(bar)
+			print()
+
 	#places an order for a stock
 	def buyStock(self, symbol, money):
 		#get the price of the stock
@@ -179,14 +200,6 @@ class Trader:
 			#return false if this stock is not a currently held position
 			return False
 
-	#a function that implements a buy-low sell-high strategy for stocks
-	def lohiStocks(self, symbol):
-		#get the stock in question
-		stock = self.alpaca.get_asset(symbol)
-
-		#get the bars of the stock for the past week
-		#stock_bars = self.alpaca.get_bars(symbol, )
-
 	#a function that randomly buys and sells stocks based on the sudoku board values
 	def cascadeStocks(self, numbers, hold=False, stocks=0):
 		#if there is no list of stocks given, get random S&P 500 stocks
@@ -229,9 +242,8 @@ class Trader:
 						print("Too little shares to sell, buying more shares...")
 						order = self.buyStock(stock, cash_alloted)
 				else: #the algorithm is supposed to hold/buy positions only
-					print("Buying shares with alloted cash...")
-					order = self.buyStock(stock, cash_alloted)
-
+					print("Holding current position...")
+					order = False
 			else: #if the number is 4, then buy crypto with half of the alloted cash
 				print("Buying shares with 1/2 of alloted cash...")
 				order = self.buyStock(stock, cash_alloted/2)
@@ -245,7 +257,7 @@ class Trader:
 				elif (order.side == "sell"):
 					print(str(order.qty))
 			else:
-				print("Order not carried out.")
+				print("Order not carried out or HODLing current position.")
 
 			#print newline for organization
 			print()
@@ -456,7 +468,7 @@ class Trader:
 			#return an order for crypto, the time in force is "gtc" for "Good Till Cancelled"
 			return self.alpaca.submit_order(
 				symbol=symbol,
-				notional=money,
+				qty=quantity,
 				side="buy",
 				type="market",
 				time_in_force="gtc"
@@ -547,8 +559,8 @@ class Trader:
 						print("Too little shares to sell, buying more shares...")
 						order = self.buyCrypto(coin, cash_alloted)
 				else: #the algorithm is supposed to hold/buy positions only
-					print("Buying shares with alloted cash...")
-					order = self.buyCrypto(coin, cash_alloted)
+					print("Holding current position...")
+					order = False
 			else: #if the number is 4, then buy crypto with half of the alloted cash
 				print("Buying shares with 1/2 of alloted cash...")
 				order = self.buyCrypto(coin, cash_alloted/2)
@@ -562,7 +574,7 @@ class Trader:
 				elif (order.side == "sell"):
 					print(str(order.qty))
 			else:
-				print("Order not carried out.")
+				print("Order not carried out or HODLing current position.")
 
 			#print newline for organization
 			print()
