@@ -2,12 +2,13 @@ from dotenv import load_dotenv
 from alpaca_trade_api.common import URL
 from alpaca_trade_api.stream import Stream
 from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
-from datetime import date
+from datetime import date, datetime
 import random
 import math
 import os
 import alpaca_trade_api as alpaca_api
 import pandas as pd
+import inspect
 
 #an organized class for stocks/crypto trading
 class Trader:
@@ -35,6 +36,10 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
+		self.getStockBars("AAPL", "hour", 5)
+
+		self.getCryptoBars("BTCUSD", "hour", 5)
+
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
 		#get information to use the alpaca api using the os module
@@ -60,15 +65,63 @@ class Trader:
 		account = self.alpaca.get_account()
 
 		#print important account info
+		print("*"*10)
 		print("Account Info:")
 		print("Portfolio Value:", account.portfolio_value)
 		print("Equity:", account.equity)
 		print("Long Market Value (Value of Stocks):", account.long_market_value)
 		print("Cash:", account.cash)
+		print("*"*10)
 		print()
 
 		#return the account
 		return account
+
+	#a function to get a set of bars for a stock for analysis
+	def getStockBars(self, symbol, unit="hour", timeamount=1):
+		#get the current time in the form of a UTC timestamp and make start and end variables
+		start = datetime.now()
+		start = start.timestamp()
+		end = start
+
+		#get the value of different units of time in seconds
+		minute = 60
+		hour = minute*60
+		day = hour*24
+		week = day*7
+		month = week*4
+		year = month*12
+
+		#get the starting timestamp based on the time unit and amount of time to go back
+		if (unit == "minute"):
+			start = start - (minute*timeamount)
+		elif (unit == "hour"):
+			start = start - (hour*timeamount)
+		elif (unit == "day"):
+			start = start - (day*timeamount)
+		elif (unit == "week"):
+			start = start - (week*timeamount)
+		elif (unit == "month"):
+			start = start - (month*timeamount)
+		elif (unit == "year"):
+			start = start - (year*timeamount)
+
+		#make the starting timestamp into an iso timestamp
+		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
+
+		#make the ending timestamp 15 minutes ago (free subscription does not allow more recent data) and convert to iso timestamp
+		end = end - (15*minute)
+		end = str(datetime.fromtimestamp(end).isoformat())+"Z"
+
+		#get bars for stocks
+		bars = self.alpaca.get_bars_iter(symbol, TimeFrame.Hour, start, end, adjustment="raw")
+
+		#print out the bars for the stocks
+		for bar in bars:
+			print(bar)
+
+		#return the iterable bars
+		return bars
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
@@ -136,14 +189,6 @@ class Trader:
 		stockprice = self.alpaca.get_latest_bar(symbol)
 
 		return stockprice
-
-	#gets stock bar data
-	def getStockBars(self, symbol):
-		bar_iter = self.alpaca.get_bars_iter(symbol, TimeFrame(45, TimeFrameUnit.Minute), date.today(), date.today(), adjustment="raw")
-
-		for bar in bar_iter:
-			print(bar)
-			print()
 
 	#places an order for a stock
 	def buyStock(self, symbol, money):
@@ -276,25 +321,26 @@ class Trader:
 
 		#loop through current stock positions
 		for pos in positions:
-			#get the profit/loss as a float
-			profit = float(pos.unrealized_pl)
+			if (pos.asset_class == "us_equity"):
+				#get the profit/loss as a float
+				profit = float(pos.unrealized_pl)
 
-			print(pos.symbol + ":")
-			print("Profit/Loss:", profit)
+				print(pos.symbol + ":")
+				print("Profit/Loss:", profit)
 
-			#if there is a profit, sell the position
-			if (profit > 0):
-				#sell the stock
-				order = self.sellStock(pos.symbol)
+				#if there is a profit, sell the position
+				if (profit > 0):
+					#sell the stock
+					order = self.sellStock(pos.symbol)
 
-				#print order information
-				if (order):
-					print(order.side)
-					print(order.qty)
-				else:
-					print("Not sold, too little to sell.")
+					#print order information
+					if (order):
+						print(order.side)
+						print(order.qty)
+					else:
+						print("Not sold, too little to sell.")
 
-			print()
+				print()
 
 	#a function that sells all stock positions
 	def sellAllStocks(self):
@@ -434,6 +480,52 @@ class Trader:
 		cryptoprice = self.alpaca.get_latest_crypto_bar(symbol, exchange)
 
 		return cryptoprice
+
+	#a function to get a set of bars for a crypto for analysis
+	def getCryptoBars(self, symbol, unit="hour", timeamount=1):
+		#get the current time in the form of a UTC timestamp and make start and end variables
+		start = datetime.now()
+		start = start.timestamp()
+		end = start
+
+		#get the value of different units of time in seconds
+		minute = 60
+		hour = minute*60
+		day = hour*24
+		week = day*7
+		month = week*4
+		year = month*12
+
+		#get the starting timestamp based on the time unit and amount of time to go back
+		if (unit == "minute"):
+			start = start - (minute*timeamount)
+		elif (unit == "hour"):
+			start = start - (hour*timeamount)
+		elif (unit == "day"):
+			start = start - (day*timeamount)
+		elif (unit == "week"):
+			start = start - (week*timeamount)
+		elif (unit == "month"):
+			start = start - (month*timeamount)
+		elif (unit == "year"):
+			start = start - (year*timeamount)
+
+		#make the starting timestamp into an iso timestamp
+		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
+
+		#make the ending timestamp 15 minutes ago (free subscription does not allow more recent data) and convert to iso timestamp
+		end = end - (15*minute)
+		end = str(datetime.fromtimestamp(end).isoformat())+"Z"
+
+		#get bars for stocks with a time frame unit of one hour
+		bars = self.alpaca.get_crypto_bars_iter(symbol, TimeFrame.Hour, start, end)
+
+		#print out the bars for the stocks
+		for bar in bars:
+			print(bar)
+
+		#return the iterable bars
+		return bars
 
 	#places an order for a cryptocurrency
 	def buyCrypto(self, symbol, money):
@@ -593,25 +685,26 @@ class Trader:
 
 		#loop through current crypto positions
 		for pos in positions:
-			#get the profit/loss as a float
-			profit = float(pos.unrealized_pl)
+			if (pos.asset_class != "us_equity"):
+				#get the profit/loss as a float
+				profit = float(pos.unrealized_pl)
 
-			print(pos.symbol + ":")
-			print("Profit/Loss:", profit)
+				print(pos.symbol + ":")
+				print("Profit/Loss:", profit)
 
-			#if there is a profit, sell the position
-			if (profit > 0):
-				#sell the crypto
-				order = self.sellCrypto(pos.symbol)
+				#if there is a profit, sell the position
+				if (profit > 0):
+					#sell the crypto
+					order = self.sellCrypto(pos.symbol)
 
-				#print order information
-				if (order):
-					print(order.side)
-					print(order.qty)
-				else:
-					print("Not sold, too little to sell.")
+					#print order information
+					if (order):
+						print(order.side)
+						print(order.qty)
+					else:
+						print("Not sold, too little to sell.")
 
-			print()
+				print()
 
 	#a function that sells all crypto positions
 	def sellAllCrypto(self):

@@ -25,7 +25,7 @@ def main():
 	#trader_person.sellProfitCrypto()
 
 	#randomly buy crypto (with no selling)
-	trader_person.cascadeCrypto(boardvalues, True)
+	#trader_person.cascadeCrypto(boardvalues, True)
 
 	#sell all crypto positions
 	#trader_person.sellAllCrypto()
@@ -34,7 +34,7 @@ def main():
 	#trader_person.sellProfitStocks()
 
 	#randomly buy and sell stocks
-	#trader_person.cascadeStocks(boardvalues)
+	#trader_person.cascadeStocks(boardvalues, True)
 
 	#sell all stock positions
 	#trader_person.sellAllStocks()
