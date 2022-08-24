@@ -36,6 +36,8 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
+		self.correlateAssets("BTCUSD", "ETHUSD")
+
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
 		#get information to use the alpaca api using the os module
@@ -72,6 +74,64 @@ class Trader:
 
 		#return the account
 		return account
+
+	#this is a function to get the trend and volatility of a set of market data
+	def getAssetData(self, bars):
+		#make variables to get the total trend and volatility
+		total_trend = 0
+		total_volatility = 0
+
+		#analyze the market data
+		for bar in bars:
+			#calculate trend
+			trend = bar.c - bar.o
+
+			#calculate trend in percentage
+			percent_trend = trend / (bar.vw/100)
+
+			#add this trend to the total trend calculation
+			total_trend = total_trend + percent_trend
+
+			#calculate the percentage volatility up and down
+			percent_up = bar.h - bar.vw
+			percent_up = percent_up / (bar.vw/100)
+			percent_down = bar.vw - bar.l
+			percent_down = percent_down / (bar.vw/100)
+
+			#get the total volatility
+			percent_volatility = percent_up + percent_down
+
+			#add this volatility to the total volatility calculation
+			total_volatility = total_volatility + percent_volatility
+
+		#return the total percent trend and total volatility
+		return total_trend, total_volatility
+
+	#this is a function to analyze two assets for correlations
+	def correlateAssets(self, benchmark, comparator, asset_type="crypto", timeunit="hour", timeamount=5):
+		#get the market data for the benchmark and comparator assets
+		if (asset_type == "crypto"):
+			benchmark_bars = self.getCryptoBars(benchmark, timeunit, timeamount)
+			comparator_bars = self.getCryptoBars(comparator, timeunit, timeamount)
+		elif (asset_type == "stock"):
+			benchmark_bars = self.getStockBars(benchmark, timeunit, timeamount)
+			comparator_bars = self.getStockBars(comparator, timeunit, timeamount)
+
+		#get the trend and volatility for the benchmark market data
+		benchmark_trend, benchmark_volatility = self.getAssetData(benchmark_bars)
+
+		#get the trend and volatility for the comparator market data
+		comparator_trend, comparator_volatility = self.getAssetData(comparator_bars)
+
+		print(benchmark, "(Benchmark) Info:")
+		print("Trend:", str(benchmark_trend)+"%")
+		print("Volatility:", str(benchmark_volatility)+"%")
+		print()
+
+		print(comparator, "(Comparator) Info:")
+		print("Trend:", str(comparator_trend)+"%")
+		print("Volatility:", str(comparator_volatility)+"%")
+		print()
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
@@ -190,10 +250,6 @@ class Trader:
 
 		#get bars for stocks
 		bars = self.alpaca.get_bars_iter(symbol, timeframe, start, end, adjustment="raw")
-
-		#print out the bars for the stocks
-		for bar in bars:
-			print(bar)
 
 		#return the iterable bars
 		return bars
@@ -539,10 +595,6 @@ class Trader:
 
 		#get bars for stocks with a time frame unit of one hour
 		bars = self.alpaca.get_crypto_bars_iter(symbol, TimeFrame.Hour, start, end)
-
-		#print out the bars for the stocks
-		for bar in bars:
-			print(bar)
 
 		#return the iterable bars
 		return bars
