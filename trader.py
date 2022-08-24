@@ -36,10 +36,6 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
-		self.getStockBars("AAPL", "hour", 5)
-
-		self.getCryptoBars("BTCUSD", "hour", 5)
-
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
 		#get information to use the alpaca api using the os module
@@ -159,19 +155,31 @@ class Trader:
 		month = week*4
 		year = month*12
 
-		#get the starting timestamp based on the time unit and amount of time to go back
+		#get the starting timestamp based on the time unit and amount of time to go back. also get the right time increment
 		if (unit == "minute"):
 			start = start - (minute*timeamount)
+
+			timeframe = TimeFrame.Minute
 		elif (unit == "hour"):
 			start = start - (hour*timeamount)
+
+			timeframe = TimeFrame.Hour
 		elif (unit == "day"):
 			start = start - (day*timeamount)
+
+			timeframe = TimeFrame.Day
 		elif (unit == "week"):
 			start = start - (week*timeamount)
+
+			timeframe = TimeFrame.Week
 		elif (unit == "month"):
 			start = start - (month*timeamount)
+
+			timeframe = TimeFrame.Month
 		elif (unit == "year"):
 			start = start - (year*timeamount)
+
+			timeframe = TimeFrame.Year
 
 		#make the starting timestamp into an iso timestamp
 		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
@@ -181,7 +189,7 @@ class Trader:
 		end = str(datetime.fromtimestamp(end).isoformat())+"Z"
 
 		#get bars for stocks
-		bars = self.alpaca.get_bars_iter(symbol, TimeFrame.Hour, start, end, adjustment="raw")
+		bars = self.alpaca.get_bars_iter(symbol, timeframe, start, end, adjustment="raw")
 
 		#print out the bars for the stocks
 		for bar in bars:
@@ -496,19 +504,31 @@ class Trader:
 		month = week*4
 		year = month*12
 
-		#get the starting timestamp based on the time unit and amount of time to go back
+		#get the starting timestamp based on the time unit and amount of time to go back. also get the right time increment
 		if (unit == "minute"):
 			start = start - (minute*timeamount)
+
+			timeframe = TimeFrame.Minute
 		elif (unit == "hour"):
 			start = start - (hour*timeamount)
+
+			timeframe = TimeFrame.Hour
 		elif (unit == "day"):
 			start = start - (day*timeamount)
+
+			timeframe = TimeFrame.Day
 		elif (unit == "week"):
 			start = start - (week*timeamount)
+
+			timeframe = TimeFrame.Week
 		elif (unit == "month"):
 			start = start - (month*timeamount)
+
+			timeframe = TimeFrame.Month
 		elif (unit == "year"):
 			start = start - (year*timeamount)
+
+			timeframe = TimeFrame.Year
 
 		#make the starting timestamp into an iso timestamp
 		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
