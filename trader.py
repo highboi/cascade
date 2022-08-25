@@ -36,7 +36,13 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
-		self.correlateAssets("BTCUSD", "ETHUSD")
+		self.lohiAssets("BTCUSD")
+
+		'''
+		self.correlateAssets("BTCUSD", "ETHUSD", "hour", 6)
+		self.correlateAssets("BTCUSD", "ETHUSD", "week", 6)
+		self.correlateAssets("BTCUSD", "ETHUSD", "month", 6)
+		'''
 
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
@@ -81,6 +87,9 @@ class Trader:
 		total_trend = 0
 		total_volatility = 0
 
+		prev_volatility = 0
+		volatility_change = 0
+
 		#analyze the market data
 		for bar in bars:
 			#calculate trend
@@ -101,28 +110,61 @@ class Trader:
 			#get the total volatility
 			percent_volatility = percent_up + percent_down
 
+			#calculate the volatility change based on the volatility of the previous bar
+			if (percent_volatility > prev_volatility):
+				volatility_change = volatility_change + 1
+			elif (percent_volatility < prev_volatility):
+				volatility_change = volatility_change - 1
+
 			#add this volatility to the total volatility calculation
 			total_volatility = total_volatility + percent_volatility
 
+			#store this bars volatility for analysis in the next loop iteration
+			prev_volatility = percent_volatility
+
 		#return the total percent trend and total volatility
-		return total_trend, total_volatility
+		return total_trend, total_volatility, volatility_change
 
 	#this is a function to analyze two assets for correlations
-	def correlateAssets(self, benchmark, comparator, asset_type="crypto", timeunit="hour", timeamount=5):
-		#get the market data for the benchmark and comparator assets
-		if (asset_type == "crypto"):
+	def correlateAssets(self, benchmark, comparator, timeunit="hour", timeamount=5):
+		#get the asset class for the benchmark and comparator
+		benchmark_asset = self.alpaca.get_asset(benchmark)
+		benchmark_type = benchmark_asset.__getattr__("class")
+
+		comparator_asset = self.alpaca.get_asset(comparator)
+		comparator_type = comparator_asset.__getattr__("class")
+
+		#get the proper bar data for each asset
+		if (benchmark_type == "crypto"):
 			benchmark_bars = self.getCryptoBars(benchmark, timeunit, timeamount)
-			comparator_bars = self.getCryptoBars(comparator, timeunit, timeamount)
-		elif (asset_type == "stock"):
+		elif (benchmark_type == "us_equity"):
 			benchmark_bars = self.getStockBars(benchmark, timeunit, timeamount)
+
+		if (comparator_type == "crypto"):
+			comparator_bars = self.getCryptoBars(comparator, timeunit, timeamount)
+		elif (comparator_type == "us_equity"):
 			comparator_bars = self.getStockBars(comparator, timeunit, timeamount)
 
+
 		#get the trend and volatility for the benchmark market data
-		benchmark_trend, benchmark_volatility = self.getAssetData(benchmark_bars)
+		benchmark_trend, benchmark_volatility, benchmark_vol_change = self.getAssetData(benchmark_bars)
 
 		#get the trend and volatility for the comparator market data
-		comparator_trend, comparator_volatility = self.getAssetData(comparator_bars)
+		comparator_trend, comparator_volatility, comparator_vol_change = self.getAssetData(comparator_bars)
 
+		#calculate the relationship between the trends of the two assets
+		if ((benchmark_trend > 0 and comparator_trend > 0) or (benchmark_trend < 0 and comparator_trend < 0)):
+			trend_relationship = "linear"
+		else:
+			trend_relationship = "inverse"
+
+		#calculate the relationship between the volatility of the two assets
+		if ((benchmark_vol_change > 0 and comparator_vol_change > 0) or (benchmark_vol_change < 0 and comparator_vol_change < 0)):
+			volatility_relationship = "linear"
+		else:
+			volatility_relationship = "inverse"
+
+		'''
 		print(benchmark, "(Benchmark) Info:")
 		print("Trend:", str(benchmark_trend)+"%")
 		print("Volatility:", str(benchmark_volatility)+"%")
@@ -132,6 +174,15 @@ class Trader:
 		print("Trend:", str(comparator_trend)+"%")
 		print("Volatility:", str(comparator_volatility)+"%")
 		print()
+		'''
+
+		print("Trend and Volatility Relationships:")
+		print("Trend Relationship:", trend_relationship)
+		print("Volatility Relationship:", volatility_relationship)
+		print()
+
+		#return the trend and volatility relationship between the two assets
+		return trend_relationship, volatility_relationship
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
