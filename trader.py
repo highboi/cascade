@@ -36,13 +36,9 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
-		self.lohiAssets("BTCUSD")
-
-		'''
-		self.correlateAssets("BTCUSD", "ETHUSD", "hour", 6)
-		self.correlateAssets("BTCUSD", "ETHUSD", "week", 6)
-		self.correlateAssets("BTCUSD", "ETHUSD", "month", 6)
-		'''
+		#predict BTCUSD trend and volatility based on other assets
+		predictions = self.predictAsset("BTCUSD", ["ETHUSD", "SHIBUSD", "DOGEUSD"])
+		print(predictions)
 
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
@@ -174,15 +170,73 @@ class Trader:
 		print("Trend:", str(comparator_trend)+"%")
 		print("Volatility:", str(comparator_volatility)+"%")
 		print()
-		'''
 
 		print("Trend and Volatility Relationships:")
 		print("Trend Relationship:", trend_relationship)
 		print("Volatility Relationship:", volatility_relationship)
 		print()
+		'''
 
 		#return the trend and volatility relationship between the two assets
 		return trend_relationship, volatility_relationship
+
+	#this is a function that buys/sells an asset based on correlations with other assets
+	def predictAsset(self, asset_symbol, comparators, timeunit="hour", timeamount=6):
+		#a dictionary to store asset relationships, with the asset being predicted inside it
+		asset_rels = {"predicted_asset": asset_symbol}
+
+		#get the relationships between the assets
+		for comp in comparators:
+			#compare the assets from the past
+			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comp, timeunit, timeamount)
+
+			#get the asset class of this comparator
+			comp_asset = self.alpaca.get_asset(comp)
+			comp_class = comp_asset.__getattr__("class")
+
+			#get the bars from the past
+			if (comp_class == "crypto"):
+				comp_bars = self.getCryptoBars(comp, timeunit, timeamount)
+			elif (comp_class == "us_equity"):
+				comp_bars = self.getStockBars(comp, timeunit, timeamount)
+
+			#get the trend and volatility data for this asset
+			trend, volatility, vol_change = self.getAssetData(comp_bars)
+
+			#predict the future trend of the main asset based on the data from this asset and the relationship between them
+			if (trend_relationship == "linear"):
+				if (trend > 0):
+					trend_prediction = "up"
+				elif (trend < 0):
+					trend_prediction = "down"
+			elif (trend_relationship == "inverse"):
+				if (trend > 0):
+					trend_prediction = "down"
+				elif (trend < 0):
+					trend_prediction = "up"
+
+			#predict the future volatility of the main asset based on the data from this asset and the relationship between them
+			if (volatility_relationship == "linear"):
+				if (vol_change > 0):
+					vol_prediction = "up"
+				elif (vol_change < 0):
+					vol_prediction = "down"
+			elif (volatility_relationship == "inverse"):
+				if (vol_change > 0):
+					vol_prediction = "down"
+				elif (vol_change < 0):
+					vol_prediction = "up"
+
+			#create keys to access trend and volatility predictions in the dictionary
+			trend_key = comp + "_trend_pred"
+			volatility_key = comp + "_volatility_pred"
+
+			#store the relationships of the main asset and the comparators in the relationships dictionary
+			asset_rels[trend_key] = trend_prediction
+			asset_rels[volatility_key] = vol_prediction
+
+		#return a dictionary with the predictions of each comparator asset
+		return asset_rels
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
