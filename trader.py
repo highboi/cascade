@@ -36,9 +36,7 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
-		#predict BTCUSD trend and volatility based on other assets
-		predictions = self.predictAsset("BTCUSD", ["ETHUSD", "SHIBUSD", "DOGEUSD"])
-		print(predictions)
+		self.lohiAsset("BTCUSD")
 
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
@@ -241,6 +239,59 @@ class Trader:
 
 		#return a dictionary with the predictions of each comparator asset
 		return asset_rels
+
+	#this is a function to take correlation algorithm data and then make buying/selling decisions based off of this
+	def lohiAsset(self, asset_symbol):
+		#get the asset class to determine what to compare things to
+		asset = self.alpaca.get_asset(asset_symbol)
+		asset_class = asset.__getattr__("class")
+
+		#get other assets to correlate based on the asset class
+		if (asset_class == "crypto"):
+			other_assets = self.cryptoCoins()
+		elif (asset_class == "us_equity"):
+			other_assets = self.snp500()
+
+		#get the asset predictions
+		asset_predictions = self.predictAsset(asset_symbol, other_assets)
+
+		#variables to measure the prediction counts
+		trend_up_count = 0
+		trend_down_count = 0
+		vol_up_count = 0
+		vol_down_count = 0
+
+		#get all of the predictions and count them based on their type
+		for comp in other_assets:
+			#make sure not to compare the asset with itself
+			if (comp == asset_symbol):
+				pass
+
+			#get the dictionary keys to access the predictions
+			trend_key = comp + "_trend_pred"
+			vol_key = comp + "_volatility_pred"
+
+			#get the predictions of this asset
+			trend_pred = asset_predictions[trend_key]
+			vol_pred = asset_predictions[vol_key]
+
+			#tally up the predictions for the trends
+			if (trend_pred == "up"):
+				trend_up_count = trend_up_count + 1
+			elif (trend_pred == "down"):
+				trend_down_count = trend_down_count + 1
+
+			#tally up predictions for the volatility
+			if (vol_pred == "up"):
+				vol_up_count = vol_up_count + 1
+			elif (vol_pred == "down"):
+				vol_down_count = vol_down_count + 1
+
+		print("Prediction Counts:")
+		print("Trend Up:", trend_up_count)
+		print("Trend Down:", trend_down_count)
+		print("Volatility Up:", vol_up_count)
+		print("Volatility Down:", vol_down_count)
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
