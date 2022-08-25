@@ -187,6 +187,10 @@ class Trader:
 
 		#get the relationships between the assets
 		for comp in comparators:
+			#make sure we are not correlating the asset with itself
+			if (asset_symbol == comp):
+				pass
+
 			#compare the assets from the past
 			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comp, timeunit, timeamount)
 
