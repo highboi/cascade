@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from alpaca_trade_api.common import URL
 from alpaca_trade_api.stream import Stream
 from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import random
 import math
 import os
@@ -120,7 +120,7 @@ class Trader:
 		return total_trend, total_volatility, volatility_change
 
 	#this is a function to analyze two assets for correlations
-	def correlateAssets(self, benchmark, comparator, timeunit="hour", timeamount=5):
+	def correlateAssets(self, benchmark, comparator, timeunit="hour", timeamount=6, timestart=datetime.now()):
 		#get the asset class for the benchmark and comparator
 		benchmark_asset = self.alpaca.get_asset(benchmark)
 		benchmark_type = benchmark_asset.__getattr__("class")
@@ -130,14 +130,14 @@ class Trader:
 
 		#get the proper bar data for each asset
 		if (benchmark_type == "crypto"):
-			benchmark_bars = self.getCryptoBars(benchmark, timeunit, timeamount)
+			benchmark_bars = self.getCryptoBars(benchmark, timeunit, timeamount, timestart)
 		elif (benchmark_type == "us_equity"):
-			benchmark_bars = self.getStockBars(benchmark, timeunit, timeamount)
+			benchmark_bars = self.getStockBars(benchmark, timeunit, timeamount, timestart)
 
 		if (comparator_type == "crypto"):
-			comparator_bars = self.getCryptoBars(comparator, timeunit, timeamount)
+			comparator_bars = self.getCryptoBars(comparator, timeunit, timeamount, timestart)
 		elif (comparator_type == "us_equity"):
-			comparator_bars = self.getStockBars(comparator, timeunit, timeamount)
+			comparator_bars = self.getStockBars(comparator, timeunit, timeamount, timestart)
 
 
 		#get the trend and volatility for the benchmark market data
@@ -179,7 +179,7 @@ class Trader:
 		return trend_relationship, volatility_relationship
 
 	#this is a function that buys/sells an asset based on correlations with other assets
-	def predictAsset(self, asset_symbol, comparators, timeunit="hour", timeamount=6):
+	def predictAsset(self, asset_symbol, comparators, timeunit="hour", timeamount=6, timestart=datetime.now()):
 		#a dictionary to store asset relationships, with the asset being predicted inside it
 		asset_rels = {"predicted_asset": asset_symbol}
 
@@ -190,7 +190,7 @@ class Trader:
 				pass
 
 			#compare the assets from the past
-			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comp, timeunit, timeamount)
+			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comp, timeunit, timeamount, timestart)
 
 			#get the asset class of this comparator
 			comp_asset = self.alpaca.get_asset(comp)
@@ -198,9 +198,9 @@ class Trader:
 
 			#get the bars from the past
 			if (comp_class == "crypto"):
-				comp_bars = self.getCryptoBars(comp, timeunit, timeamount)
+				comp_bars = self.getCryptoBars(comp, timeunit, timeamount, timestart)
 			elif (comp_class == "us_equity"):
-				comp_bars = self.getStockBars(comp, timeunit, timeamount)
+				comp_bars = self.getStockBars(comp, timeunit, timeamount, timestart)
 
 			#get the trend and volatility data for this asset
 			trend, volatility, vol_change = self.getAssetData(comp_bars)
@@ -211,11 +211,15 @@ class Trader:
 					trend_prediction = "up"
 				elif (trend < 0):
 					trend_prediction = "down"
+				else:
+					trend_prediction = "none"
 			elif (trend_relationship == "inverse"):
 				if (trend > 0):
 					trend_prediction = "down"
 				elif (trend < 0):
 					trend_prediction = "up"
+				else:
+					trend_prediction = "none"
 
 			#predict the future volatility of the main asset based on the data from this asset and the relationship between them
 			if (volatility_relationship == "linear"):
@@ -223,11 +227,15 @@ class Trader:
 					vol_prediction = "up"
 				elif (vol_change < 0):
 					vol_prediction = "down"
+				else:
+					vol_prediction = "none"
 			elif (volatility_relationship == "inverse"):
 				if (vol_change > 0):
 					vol_prediction = "down"
 				elif (vol_change < 0):
 					vol_prediction = "up"
+				else:
+					vol_prediction = "none"
 
 			#create keys to access trend and volatility predictions in the dictionary
 			trend_key = comp + "_trend_pred"
@@ -237,24 +245,6 @@ class Trader:
 			asset_rels[trend_key] = trend_prediction
 			asset_rels[volatility_key] = vol_prediction
 
-		#return a dictionary with the predictions of each comparator asset
-		return asset_rels
-
-	#this is a function to take correlation algorithm data and then make buying/selling decisions based off of this
-	def lohiAsset(self, asset_symbol):
-		#get the asset class to determine what to compare things to
-		asset = self.alpaca.get_asset(asset_symbol)
-		asset_class = asset.__getattr__("class")
-
-		#get other assets to correlate based on the asset class
-		if (asset_class == "crypto"):
-			other_assets = self.cryptoCoins()
-		elif (asset_class == "us_equity"):
-			other_assets = self.snp500()
-
-		#get the asset predictions
-		asset_predictions = self.predictAsset(asset_symbol, other_assets)
-
 		#variables to measure the prediction counts
 		trend_up_count = 0
 		trend_down_count = 0
@@ -262,9 +252,9 @@ class Trader:
 		vol_down_count = 0
 
 		#get all of the predictions and count them based on their type
-		for comp in other_assets:
+		for comp in comparators:
 			#make sure not to compare the asset with itself
-			if (comp == asset_symbol):
+			if (asset_symbol == comp):
 				pass
 
 			#get the dictionary keys to access the predictions
@@ -272,8 +262,8 @@ class Trader:
 			vol_key = comp + "_volatility_pred"
 
 			#get the predictions of this asset
-			trend_pred = asset_predictions[trend_key]
-			vol_pred = asset_predictions[vol_key]
+			trend_pred = asset_rels[trend_key]
+			vol_pred = asset_rels[vol_key]
 
 			#tally up the predictions for the trends
 			if (trend_pred == "up"):
@@ -287,11 +277,54 @@ class Trader:
 			elif (vol_pred == "down"):
 				vol_down_count = vol_down_count + 1
 
-		print("Prediction Counts:")
-		print("Trend Up:", trend_up_count)
-		print("Trend Down:", trend_down_count)
-		print("Volatility Up:", vol_up_count)
-		print("Volatility Down:", vol_down_count)
+		#get the prediction counts in a dictionary
+		prediction_counts = {"trend_up": trend_up_count, "trend_down": trend_down_count, "vol_up": vol_up_count, "vol_down": vol_down_count}
+
+		#return a dictionary with the predictions of each comparator asset
+		return prediction_counts
+
+	#this is a function to take correlation algorithm data and then make buying/selling decisions based off of this
+	def lohiAsset(self, asset_symbol):
+		#get the asset class to determine what to compare things to
+		asset = self.alpaca.get_asset(asset_symbol)
+		asset_class = asset.__getattr__("class")
+
+		#get other assets to correlate based on the asset class
+		if (asset_class == "crypto"):
+			other_assets = self.cryptoCoins()
+		elif (asset_class == "us_equity"):
+			other_assets = self.snp500()
+
+		#get two different time frames
+		one_week_ago = datetime.now() + timedelta(hours=6)
+
+		#get the asset predictions
+		asset_predictions = self.predictAsset(asset_symbol, other_assets, "hour", 6)
+		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, "hour", 6, one_week_ago)
+
+		trend_prediction = asset_predictions["trend_up"] - asset_predictions["trend_down"]
+		vol_prediction = asset_predictions["vol_up"] - asset_predictions["vol_down"]
+
+		trend_prediction_2 = asset_predictions_2["trend_up"] - asset_predictions_2["trend_down"]
+		vol_prediction_2 = asset_predictions_2["vol_up"] - asset_predictions_2["vol_down"]
+
+		print("Prediction Counts for First Time Frame:")
+		print("Trend Up:", asset_predictions["trend_up"])
+		print("Trend Down:", asset_predictions["trend_down"])
+		print("Volatility Up:", asset_predictions["vol_up"])
+		print("Volatility Down:", asset_predictions["vol_down"])
+		print("Net Trend Prediction:", trend_prediction)
+		print("Net Volatility Prediction:", vol_prediction)
+		print()
+
+		print("Prediction Counts for Second Time Frame:")
+		print("Trend Up:", asset_predictions_2["trend_up"])
+		print("Trend Down:", asset_predictions_2["trend_down"])
+		print("Volatility Up:", asset_predictions_2["vol_up"])
+		print("Volatility Down:", asset_predictions_2["vol_down"])
+		print("Net Trend Prediction:", trend_prediction_2)
+		print("Net Volatility Prediction:", vol_prediction_2)
+		print()
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
@@ -361,9 +394,9 @@ class Trader:
 		return stockprice
 
 	#a function to get a set of bars for a stock for analysis
-	def getStockBars(self, symbol, unit="hour", timeamount=1):
+	def getStockBars(self, symbol, unit="hour", timeamount=1, timestart=datetime.now()):
 		#get the current time in the form of a UTC timestamp and make start and end variables
-		start = datetime.now()
+		start = timestart
 		start = start.timestamp()
 		end = start
 
@@ -706,9 +739,9 @@ class Trader:
 		return cryptoprice
 
 	#a function to get a set of bars for a crypto for analysis
-	def getCryptoBars(self, symbol, unit="hour", timeamount=1):
+	def getCryptoBars(self, symbol, unit="hour", timeamount=1, timestart=datetime.now()):
 		#get the current time in the form of a UTC timestamp and make start and end variables
-		start = datetime.now()
+		start = timestart
 		start = start.timestamp()
 		end = start
 
