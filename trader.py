@@ -295,12 +295,12 @@ class Trader:
 		elif (asset_class == "us_equity"):
 			other_assets = self.snp500()
 
-		#get two different time frames
-		one_week_ago = datetime.now() + timedelta(hours=6)
+		#get a different time frame by offsetting the present for a different starting date to go back from
+		past_time_offset = datetime.now() + timedelta(hours=6)
 
 		#get the asset predictions
 		asset_predictions = self.predictAsset(asset_symbol, other_assets, "hour", 6)
-		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, "hour", 6, one_week_ago)
+		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, "hour", 6, past_time_offset)
 
 		trend_prediction = asset_predictions["trend_up"] - asset_predictions["trend_down"]
 		vol_prediction = asset_predictions["vol_up"] - asset_predictions["vol_down"]
