@@ -36,7 +36,7 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
-		self.lohiAsset("BTCUSD")
+		self.lohiAsset("BTCUSD", "hour", 6, "hour", 24)
 
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
@@ -245,6 +245,9 @@ class Trader:
 			asset_rels[trend_key] = trend_prediction
 			asset_rels[volatility_key] = vol_prediction
 
+			print("Predicting trajectory of", asset_symbol, "based on", comp)
+			print(timestart)
+
 		#variables to measure the prediction counts
 		trend_up_count = 0
 		trend_down_count = 0
@@ -284,7 +287,7 @@ class Trader:
 		return prediction_counts
 
 	#this is a function to take correlation algorithm data and then make buying/selling decisions based off of this
-	def lohiAsset(self, asset_symbol):
+	def lohiAsset(self, asset_symbol, timeframeunit="hour", timeframeamount=6, timeoffsetunit="hour", timeoffsetamount=6):
 		#get the asset class to determine what to compare things to
 		asset = self.alpaca.get_asset(asset_symbol)
 		asset_class = asset.__getattr__("class")
@@ -296,11 +299,11 @@ class Trader:
 			other_assets = self.snp500()
 
 		#get a different time frame by offsetting the present for a different starting date to go back from
-		past_time_offset = datetime.now() + timedelta(hours=6)
+		past_time_offset = datetime.now() - timedelta(hours=timeoffsetamount)
 
 		#get the asset predictions
-		asset_predictions = self.predictAsset(asset_symbol, other_assets, "hour", 6)
-		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, "hour", 6, past_time_offset)
+		asset_predictions = self.predictAsset(asset_symbol, other_assets, timeframeunit, timeframeamount)
+		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, timeframeunit, timeframeamount, past_time_offset)
 
 		trend_prediction = asset_predictions["trend_up"] - asset_predictions["trend_down"]
 		vol_prediction = asset_predictions["vol_up"] - asset_predictions["vol_down"]
