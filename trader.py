@@ -3,7 +3,6 @@ from alpaca_trade_api.common import URL
 from alpaca_trade_api.stream import Stream
 from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
 from datetime import date, datetime, timedelta
-import matplotlib.pyplot as plt
 import random
 import math
 import os
@@ -36,33 +35,6 @@ class Trader:
 
 		#print out the current portfolio info
 		self.getPortfolio()
-
-		#arrays to store the computed values of the predictions
-		trends = []
-		vols = []
-
-		#a value to change the number of increments examined for predictions
-		increments = 24
-
-		#loop through 6 hour increments to the past to gather data
-		for x in range(6, 6*increments, 6):
-			present, offset = self.analyzeAssetData("BTCUSD", False, "hour", 6, "hour", x)
-
-			trends.append(offset["trend"])
-			vols.append(offset["volatility"])
-
-		#plot the trend and volatility over time
-		plt.plot(range(increments-1), trends, label="Trend Prediction")
-		plt.plot(range(increments-1), vols, label="Volatility Prediction")
-
-		#label the graph with useful names
-		plt.xlabel("Time (starting from the present onto the past)")
-		plt.ylabel("Increase/Decrease")
-		plt.legend()
-		plt.title("Trend and Volatility Patterns:")
-
-		#show the graph
-		plt.show()
 
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
@@ -102,7 +74,16 @@ class Trader:
 		return account
 
 	#this is a function to get the trend and volatility of a set of market data
-	def getAssetData(self, bars):
+	def getAssetData(self, asset_symbol, timeunit="hour", timeamount=6, timestart=datetime.now()):
+		#get the asset information
+		asset = self.alpaca.get_asset(asset_symbol)
+
+		#get market data based on the asset class
+		if (asset.__getattr__("class") == "us_equity"):
+			bars = self.getStockBars(asset_symbol, timeunit, timeamount, timestart)
+		elif(asset.__getattr__("class") == "crypto"):
+			bars = self.getCryptoBars(asset_symbol, timeunit, timeamount, timestart)
+
 		#make variables to get the total trend and volatility
 		total_trend = 0
 		total_volatility = 0
@@ -147,30 +128,11 @@ class Trader:
 
 	#this is a function to analyze two assets for correlations
 	def correlateAssets(self, benchmark, comparator, timeunit="hour", timeamount=6, timestart=datetime.now()):
-		#get the asset class for the benchmark and comparator
-		benchmark_asset = self.alpaca.get_asset(benchmark)
-		benchmark_type = benchmark_asset.__getattr__("class")
-
-		comparator_asset = self.alpaca.get_asset(comparator)
-		comparator_type = comparator_asset.__getattr__("class")
-
-		#get the proper bar data for each asset
-		if (benchmark_type == "crypto"):
-			benchmark_bars = self.getCryptoBars(benchmark, timeunit, timeamount, timestart)
-		elif (benchmark_type == "us_equity"):
-			benchmark_bars = self.getStockBars(benchmark, timeunit, timeamount, timestart)
-
-		if (comparator_type == "crypto"):
-			comparator_bars = self.getCryptoBars(comparator, timeunit, timeamount, timestart)
-		elif (comparator_type == "us_equity"):
-			comparator_bars = self.getStockBars(comparator, timeunit, timeamount, timestart)
-
-
 		#get the trend and volatility for the benchmark market data
-		benchmark_trend, benchmark_volatility, benchmark_vol_change = self.getAssetData(benchmark_bars)
+		benchmark_trend, benchmark_volatility, benchmark_vol_change = self.getAssetData(benchmark, timeunit, timeamount, timestart)
 
 		#get the trend and volatility for the comparator market data
-		comparator_trend, comparator_volatility, comparator_vol_change = self.getAssetData(comparator_bars)
+		comparator_trend, comparator_volatility, comparator_vol_change = self.getAssetData(comparator, timeunit, timeamount, timestart)
 
 		#calculate the relationship between the trends of the two assets
 		if ((benchmark_trend > 0 and comparator_trend > 0) or (benchmark_trend < 0 and comparator_trend < 0)):
@@ -218,18 +180,8 @@ class Trader:
 			#compare the assets from the past
 			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comp, timeunit, timeamount, timestart)
 
-			#get the asset class of this comparator
-			comp_asset = self.alpaca.get_asset(comp)
-			comp_class = comp_asset.__getattr__("class")
-
-			#get the bars from the past
-			if (comp_class == "crypto"):
-				comp_bars = self.getCryptoBars(comp, timeunit, timeamount, timestart)
-			elif (comp_class == "us_equity"):
-				comp_bars = self.getStockBars(comp, timeunit, timeamount, timestart)
-
 			#get the trend and volatility data for this asset
-			trend, volatility, vol_change = self.getAssetData(comp_bars)
+			trend, volatility, vol_change = self.getAssetData(comp, timeunit, timeamount, timestart)
 
 			#predict the future trend of the main asset based on the data from this asset and the relationship between them
 			if (trend_relationship == "linear"):
