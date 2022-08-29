@@ -3,6 +3,7 @@ from alpaca_trade_api.common import URL
 from alpaca_trade_api.stream import Stream
 from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
 from datetime import date, datetime, timedelta
+import matplotlib.pyplot as plt
 import random
 import math
 import os
@@ -36,7 +37,32 @@ class Trader:
 		#print out the current portfolio info
 		self.getPortfolio()
 
-		self.lohiAsset("BTCUSD", "hour", 6, "hour", 24)
+		#arrays to store the computed values of the predictions
+		trends = []
+		vols = []
+
+		#a value to change the number of increments examined for predictions
+		increments = 24
+
+		#loop through 6 hour increments to the past to gather data
+		for x in range(6, 6*increments, 6):
+			present, offset = self.analyzeAssetData("BTCUSD", False, "hour", 6, "hour", x)
+
+			trends.append(offset["trend"])
+			vols.append(offset["volatility"])
+
+		#plot the trend and volatility over time
+		plt.plot(range(increments-1), trends, label="Trend Prediction")
+		plt.plot(range(increments-1), vols, label="Volatility Prediction")
+
+		#label the graph with useful names
+		plt.xlabel("Time (starting from the present onto the past)")
+		plt.ylabel("Increase/Decrease")
+		plt.legend()
+		plt.title("Trend and Volatility Patterns:")
+
+		#show the graph
+		plt.show()
 
 	#a function that sets up the alpaca REST client
 	def setupAlpaca(self):
@@ -245,9 +271,6 @@ class Trader:
 			asset_rels[trend_key] = trend_prediction
 			asset_rels[volatility_key] = vol_prediction
 
-			print("Predicting trajectory of", asset_symbol, "based on", comp)
-			print(timestart)
-
 		#variables to measure the prediction counts
 		trend_up_count = 0
 		trend_down_count = 0
@@ -287,7 +310,7 @@ class Trader:
 		return prediction_counts
 
 	#this is a function to take correlation algorithm data and then make buying/selling decisions based off of this
-	def lohiAsset(self, asset_symbol, timeframeunit="hour", timeframeamount=6, timeoffsetunit="hour", timeoffsetamount=6):
+	def analyzeAssetData(self, asset_symbol, analyze_present=True, time_frame_unit="hour", time_frame_amount=6, time_offset_unit="hour", time_offset_amount=6):
 		#get the asset class to determine what to compare things to
 		asset = self.alpaca.get_asset(asset_symbol)
 		asset_class = asset.__getattr__("class")
@@ -298,19 +321,44 @@ class Trader:
 		elif (asset_class == "us_equity"):
 			other_assets = self.snp500()
 
+		#calculate the timedelta value based on the time_offset_unit parameter
+		if (time_offset_unit == "minute"):
+			time_offset = timedelta(minutes=time_offset_amount)
+		elif (time_offset_unit == "hour"):
+			time_offset = timedelta(hours=time_offset_amount)
+		elif (time_offset_unit == "day"):
+			time_offset = timedelta(days=time_offset_amount)
+		elif (time_offset_unit == "week"):
+			time_offset = timedelta(weeks=time_offset_amount)
+		elif (time_offset_unit == "month"):
+			time_offset = timedelta(months=time_offset_amount)
+		elif (time_offset_unit == "year"):
+			time_offset = timedelta(years=time_offset_amount)
+
 		#get a different time frame by offsetting the present for a different starting date to go back from
-		past_time_offset = datetime.now() - timedelta(hours=timeoffsetamount)
+		past_time_offset = datetime.now() - time_offset
+
+		#alert the programmer of the time frame and time offset
+		print("Using a time frame of", time_frame_amount, time_frame_unit + "(s)")
+		print("Going back", time_offset_amount, time_offset_unit + "(s)", "for comparison of market data.")
+		print("Comparing", datetime.now(), "with a time frame in", past_time_offset)
+		print()
 
 		#get the asset predictions
-		asset_predictions = self.predictAsset(asset_symbol, other_assets, timeframeunit, timeframeamount)
-		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, timeframeunit, timeframeamount, past_time_offset)
+		if (analyze_present):
+			asset_predictions = self.predictAsset(asset_symbol, other_assets, time_frame_unit, time_frame_amount)
+		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, time_frame_unit, time_frame_amount, past_time_offset)
 
-		trend_prediction = asset_predictions["trend_up"] - asset_predictions["trend_down"]
-		vol_prediction = asset_predictions["vol_up"] - asset_predictions["vol_down"]
+		#get the net predictions for the trend and volatility by taking the difference between the up and down predictions
+		if (analyze_present):
+			trend_prediction = asset_predictions["trend_up"] - asset_predictions["trend_down"]
+			vol_prediction = asset_predictions["vol_up"] - asset_predictions["vol_down"]
 
 		trend_prediction_2 = asset_predictions_2["trend_up"] - asset_predictions_2["trend_down"]
 		vol_prediction_2 = asset_predictions_2["vol_up"] - asset_predictions_2["vol_down"]
 
+		'''
+		#print the prediction data for each time frame
 		print("Prediction Counts for First Time Frame:")
 		print("Trend Up:", asset_predictions["trend_up"])
 		print("Trend Down:", asset_predictions["trend_down"])
@@ -328,6 +376,16 @@ class Trader:
 		print("Net Trend Prediction:", trend_prediction_2)
 		print("Net Volatility Prediction:", vol_prediction_2)
 		print()
+		'''
+
+		#store the net prediction values in dictionaries
+		if (analyze_present):
+			present_prediction = {"trend": trend_prediction, "volatility": vol_prediction}
+		else:
+			present_prediction = None
+		offset_prediction = {"trend": trend_prediction_2, "volatility": vol_prediction_2}
+
+		return present_prediction, offset_prediction
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
