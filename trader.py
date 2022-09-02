@@ -166,6 +166,67 @@ class Trader:
 		#return the trend and volatility relationship between the two assets
 		return trend_relationship, volatility_relationship
 
+	#this is a function that predicts changes in relationships between assets
+	def predictAssetRel(self, asset_symbol, comparator, timeunit="hour", timeamount=6, timeincrements=6, timestart=datetime.now()):
+		print("Predicting future asset relationship...")
+
+		#make variables for the linearity of the trend and volatility relationship with these two assets
+		trend_linearity = 0
+		volatility_linearity = 0
+
+		#get the relationship between assets over multiple time increments to predict future relationships
+		for x in range(1, timeincrements):
+			#get the right time offset based on the time increment of this iteration of the loop
+			if (timeunit == "minute"):
+				time_offset = timedelta(minutes=timeamount*x)
+			elif (timeunit == "hour"):
+				time_offset = timedelta(hours=timeamount*x)
+			elif (timeunit == "day"):
+				time_offset = timedelta(days=timeamount*x)
+			elif (timeunit == "week"):
+				time_offset = timedelta(weeks=timeamount*x)
+			elif (timeunit == "month"):
+				time_offset = timedelta(months=timeamount*x)
+			elif (timeunit == "year"):
+				time_offset = timedelta(years=timeamount*x)
+
+			#get the starting point for this increment of time
+			timepoint = timestart - time_offset
+
+			#get the trend relationship for this time period and offset
+			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timepoint)
+
+			#add to the trend linearity value
+			if (trend_relationship == "linear"):
+				trend_linearity = trend_linearity + 1
+			else:
+				trend_linearity = trend_linearity - 1
+
+			#add to the volatility linearity value
+			if (volatility_relationship == "linear"):
+				volatility_linearity = volatility_linearity + 1
+			else:
+				volatility_linearity = volatility_linearity - 1
+
+		#calculate the relationship prediction for trend
+		if (trend_linearity > 0):
+			trend_rel_pred = "linear"
+		elif (trend_linearity < 0):
+			trend_rel_pred = "inverse"
+		else:
+			trend_rel_pred = "nochange"
+
+		#calculate the relationship prediction for volatility
+		if (volatility_linearity > 0):
+			vol_rel_pred = "linear"
+		elif (volatility_linearity < 0):
+			vol_rel_pred = "inverse"
+		else:
+			vol_rel_pred = "nochange"
+
+		#return the total prediction of the trend and volatility relationships
+		return trend_rel_pred, vol_rel_pred
+
 	#this is a function that buys/sells an asset based on correlations with other assets
 	def predictAsset(self, asset_symbol, comparators, timeunit="hour", timeamount=6, timestart=datetime.now()):
 		#a dictionary to store asset relationships, with the asset being predicted inside it
@@ -179,6 +240,12 @@ class Trader:
 
 			#compare the assets from the past
 			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comp, timeunit, timeamount, timestart)
+
+			#get the trend and volatility relationship predictions
+			trend_rel_pred, vol_rel_pred = self.predictAssetRel(asset_symbol, comp, timeunit, timeamount, 6, timestart)
+
+			print("Trend Relationship Prediction:", trend_rel_pred)
+			print("Volatility Relationship Prediction:", vol_rel_pred)
 
 			#get the trend and volatility data for this asset
 			trend, volatility, vol_change = self.getAssetData(comp, timeunit, timeamount, timestart)
@@ -271,7 +338,7 @@ class Trader:
 		if (asset_class == "crypto"):
 			other_assets = self.cryptoCoins()
 		elif (asset_class == "us_equity"):
-			other_assets = self.snp500()
+			other_assets = self.snp500()[:10]
 
 		#calculate the timedelta value based on the time_offset_unit parameter
 		if (time_offset_unit == "minute"):
