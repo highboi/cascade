@@ -9,6 +9,7 @@ import trader
 import time
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
+from pprint import pprint
 
 #main function to execute the entire trading program
 def main():
@@ -19,6 +20,10 @@ def main():
 
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
+
+	predictions = trader_person.crystalBall("BTCUSD", "hour", 6)
+
+	pprint(predictions)
 
 #execute the main program
 main()

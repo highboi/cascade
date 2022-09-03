@@ -257,6 +257,67 @@ class Trader:
 		#return the trend and volatility prediction of the asset pair
 		return trend_prediction, vol_prediction, trend_relationship, volatility_relationship
 
+	#this is a function to produce predictions for an asset and weigh the predictions based on their accuracy
+	def crystalBall(self, asset_symbol, timeunit="hour", timeamount=6, timestart=datetime.now()):
+		#get the asset class
+		asset = self.alpaca.get_asset(asset_symbol)
+		asset_class = asset.__getattr__("class")
+
+		#get the comparators
+		if (asset_class == "crypto"):
+			comparators = self.cryptoCoins()
+		elif (asset_class == "us_equity"):
+			comparators = self.snp500()[:24]
+
+		#an object to add prediction data
+		weighted_predictions = {"asset": asset_symbol}
+
+		#loop through each comparator ticker
+		for comp in comparators:
+			trend_pred_accuracy = 0
+			vol_pred_accuracy = 0
+
+			#get the trend predictions, volatility predictions, and relationships
+			trend_prediction, vol_prediction, trend_relationship, vol_relationship = self.predictAsset(asset_symbol, comp, timeunit, timeamount, timestart)
+
+			#get the actual data for this time frame
+			trend, volatility, vol_change = self.getAssetData(asset_symbol, timeunit, timeamount, timestart)
+
+			#compare the predictions with actual data to measure accuracy of predictions
+			if ((trend > 0 and trend_prediction == "up") or (trend < 0 and trend_prediction == "down")):
+				trend_pred_accuracy = trend_pred_accuracy + 1
+			elif (trend == 0 and trend_prediction == "none"):
+				trend_pred_accuracy = trend_pred_accuracy + 1
+			else:
+				trend_pred_accuracy = trend_pred_accuracy - 1
+
+			if ((vol_change > 0 and vol_prediction == "up") or (vol_change < 0 and vol_prediction == "down")):
+				vol_pred_accuracy = vol_pred_accuracy + 1
+			elif (vol_change == 0 and vol_prediction == "none"):
+				vol_pred_accuracy = vol_pred_accuracy + 1
+			else:
+				vol_pred_accuracy = vol_pred_accuracy - 1
+
+			#add prediction data to object containing the predictions and their weighted accuracy
+			trend_pred_key = comp + "_trend"
+			vol_pred_key = comp + "_vol"
+			trend_weight_key = comp + "_trend_weight"
+			vol_weight_key = comp + "_vol_weight"
+
+			weighted_predictions[trend_pred_key] = trend_prediction
+			weighted_predictions[vol_pred_key] = vol_prediction
+			weighted_predictions[trend_weight_key] = trend_pred_accuracy
+			weighted_predictions[vol_weight_key] = vol_pred_accuracy
+
+		return weighted_predictions
+
+	#this is a function that measures multiple weighted predictions in order to create accurate final predictions about trend and volatility
+	#def crystalBalls(self, asset_symbol, timeunit="hour", timeamount=6, offsetunit="hour", offsetamount=6):
+
+	'''
+	ALL FUNCTIONS BELOW THIS ARE FOR BUYING/SELLING AND RETRIEVING RAW DATA ONLY, NO DATA PROCESSING
+	'''
+
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
 		#get a list of the current stock positions
