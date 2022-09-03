@@ -21,7 +21,7 @@ def main():
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
 
-	predictions = trader_person.crystalBall("BTCUSD", "hour", 6)
+	predictions = trader_person.crystalBalls("DOGEUSD", "hour", 6, 6)
 
 	pprint(predictions)
 

@@ -3,6 +3,7 @@ from alpaca_trade_api.common import URL
 from alpaca_trade_api.stream import Stream
 from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
 from datetime import date, datetime, timedelta
+from pprint import pprint
 import random
 import math
 import os
@@ -309,12 +310,77 @@ class Trader:
 			weighted_predictions[trend_weight_key] = trend_pred_accuracy
 			weighted_predictions[vol_weight_key] = vol_pred_accuracy
 
-		return weighted_predictions
+		return weighted_predictions, comparators
 
 	#this is a function that measures multiple weighted predictions in order to create accurate final predictions about trend and volatility
-	#def crystalBalls(self, asset_symbol, timeunit="hour", timeamount=6, offsetunit="hour", offsetamount=6):
+	def crystalBalls(self, asset_symbol, timeunit="hour", timeamount=6, increments=12):
+		#GET THE CORRECT TIME START VALUE BASED ON THE TIME PERIOD SPECIFIED
+		if (timeunit == "minute"):
+			timeoffset = timedelta(minutes=timeamount)
+		elif (timeunit == "hour"):
+			timeoffset = timedelta(hours=timeamount)
+		elif (timeunit == "day"):
+			timeoffset = timedelta(days=timeamount)
+		elif (timeunit == "week"):
+			timeoffset = timedelta(weeks=timeamount)
+		elif (timeunit == "month"):
+			timeoffset = timedelta(months=timeamount)
+		elif (timeunit == "year"):
+			timeoffset = timedelta(years=timeamount)
 
-	'''
+		#a dictionary to store prediction sets for all time periods
+		prediction_sets = {}
+
+		#LOOP THROUGH THE TIME INCREMENTS TO GET MULTIPLE WEIGHTED PREDICTION SETS
+		for x in range(0, increments):
+			#GET THE TIMESTART FOR THIS LOOP ITERATION
+			timestart = datetime.now() - (timeoffset*x)
+
+			#GET THE PREDICTION DATA
+			weighted_predictions, comparators = self.crystalBall(asset_symbol, timeunit, timeamount, timestart)
+
+			#ADD THE PREDICTION DATA TO AN OBJECT FOR LATER ANALYSIS
+			time_period_key = "pred_set_" + str(x)
+
+			#insert the comparators and iteration number for this prediction set
+			weighted_predictions["comparators"] = comparators
+			weighted_predictions["number"] = x
+
+			#add the weighted predictions to the prediction sets
+			prediction_sets[time_period_key] = weighted_predictions
+
+		#a dictionary to store the final calculated predictions based on weight
+		final_predictions = {"asset": asset_symbol, "trend_up": 0, "trend_down": 0, "trend_same": 0, "vol_up": 0, "vol_down": 0, "vol_same": 0}
+
+		#LOOP THROUGH THE PREDICTIONS TO SET A WEIGHTED VALUE FOR EACH PREDICTION POSSIBILITY
+		for preds in prediction_sets.values():
+			#loop through the comparators for this set to get their prediction values
+			for comp in preds["comparators"]:
+				#get the prediction values
+				trend_value = preds[comp + "_trend"]
+				vol_value = preds[comp + "_vol"]
+				trend_accuracy = preds[comp + "_trend_weight"]
+				vol_accuracy = preds[comp + "_vol_weight"]
+
+				#add this trend prediction to the total weighted prediction
+				if (trend_value == "up"):
+					final_predictions["trend_up"] = final_predictions["trend_up"] + trend_accuracy
+				elif (trend_value == "down"):
+					final_predictions["trend_down"] = final_predictions["trend_down"] + trend_accuracy
+				else:
+					final_predictions["trend_same"] = final_predictions["trend_same"] + trend_accuracy
+
+				#add this volatility prediction to the total weighted prediction
+				if (vol_value == "up"):
+					final_predictions["vol_up"] = final_predictions["vol_up"] + vol_accuracy
+				elif (vol_value == "down"):
+					final_predictions["vol_down"] = final_predictions["vol_down"] + vol_accuracy
+				else:
+					final_predictions["vol_same"] = final_predictions["vol_same"] + vol_accuracy
+
+		return final_predictions
+
+		'''
 	ALL FUNCTIONS BELOW THIS ARE FOR BUYING/SELLING AND RETRIEVING RAW DATA ONLY, NO DATA PROCESSING
 	'''
 
