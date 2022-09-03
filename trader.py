@@ -146,23 +146,6 @@ class Trader:
 		else:
 			volatility_relationship = "inverse"
 
-		'''
-		print(benchmark, "(Benchmark) Info:")
-		print("Trend:", str(benchmark_trend)+"%")
-		print("Volatility:", str(benchmark_volatility)+"%")
-		print()
-
-		print(comparator, "(Comparator) Info:")
-		print("Trend:", str(comparator_trend)+"%")
-		print("Volatility:", str(comparator_volatility)+"%")
-		print()
-
-		print("Trend and Volatility Relationships:")
-		print("Trend Relationship:", trend_relationship)
-		print("Volatility Relationship:", volatility_relationship)
-		print()
-		'''
-
 		#return the trend and volatility relationship between the two assets
 		return trend_relationship, volatility_relationship
 
@@ -227,184 +210,52 @@ class Trader:
 		#return the total prediction of the trend and volatility relationships
 		return trend_rel_pred, vol_rel_pred
 
-	#this is a function that buys/sells an asset based on correlations with other assets
-	def predictAsset(self, asset_symbol, comparators, timeunit="hour", timeamount=6, timestart=datetime.now()):
-		#a dictionary to store asset relationships, with the asset being predicted inside it
-		asset_rels = {"predicted_asset": asset_symbol}
+	#this is a function that predicts an asset based on another asset
+	def predictAsset(self, asset_symbol, comparator, timeunit="hour", timeamount=6, timestart=datetime.now()):
+		#make sure we are not correlating the asset with itself
+		if (asset_symbol == comparator):
+			pass
 
-		#get the relationships between the assets
-		for comp in comparators:
-			#make sure we are not correlating the asset with itself
-			if (asset_symbol == comp):
-				pass
+		#compare the assets from the past
+		trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timestart)
 
-			#compare the assets from the past
-			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comp, timeunit, timeamount, timestart)
+		#get the trend and volatility data for this asset
+		trend, volatility, vol_change = self.getAssetData(comparator, timeunit, timeamount, timestart)
 
-			#get the trend and volatility relationship predictions
-			trend_rel_pred, vol_rel_pred = self.predictAssetRel(asset_symbol, comp, timeunit, timeamount, 6, timestart)
+		#predict the future trend of the main asset based on the data from this asset and the relationship between them
+		if (trend_relationship == "linear"):
+			if (trend > 0):
+				trend_prediction = "up"
+			elif (trend < 0):
+				trend_prediction = "down"
+			else:
+				trend_prediction = "none"
+		elif (trend_relationship == "inverse"):
+			if (trend > 0):
+				trend_prediction = "down"
+			elif (trend < 0):
+				trend_prediction = "up"
+			else:
+				trend_prediction = "none"
 
-			print("Trend Relationship Prediction:", trend_rel_pred)
-			print("Volatility Relationship Prediction:", vol_rel_pred)
+		#predict the future volatility of the main asset based on the data from this asset and the relationship between them
+		if (volatility_relationship == "linear"):
+			if (vol_change > 0):
+				vol_prediction = "up"
+			elif (vol_change < 0):
+				vol_prediction = "down"
+			else:
+				vol_prediction = "none"
+		elif (volatility_relationship == "inverse"):
+			if (vol_change > 0):
+				vol_prediction = "down"
+			elif (vol_change < 0):
+				vol_prediction = "up"
+			else:
+				vol_prediction = "none"
 
-			#get the trend and volatility data for this asset
-			trend, volatility, vol_change = self.getAssetData(comp, timeunit, timeamount, timestart)
-
-			#predict the future trend of the main asset based on the data from this asset and the relationship between them
-			if (trend_relationship == "linear"):
-				if (trend > 0):
-					trend_prediction = "up"
-				elif (trend < 0):
-					trend_prediction = "down"
-				else:
-					trend_prediction = "none"
-			elif (trend_relationship == "inverse"):
-				if (trend > 0):
-					trend_prediction = "down"
-				elif (trend < 0):
-					trend_prediction = "up"
-				else:
-					trend_prediction = "none"
-
-			#predict the future volatility of the main asset based on the data from this asset and the relationship between them
-			if (volatility_relationship == "linear"):
-				if (vol_change > 0):
-					vol_prediction = "up"
-				elif (vol_change < 0):
-					vol_prediction = "down"
-				else:
-					vol_prediction = "none"
-			elif (volatility_relationship == "inverse"):
-				if (vol_change > 0):
-					vol_prediction = "down"
-				elif (vol_change < 0):
-					vol_prediction = "up"
-				else:
-					vol_prediction = "none"
-
-			#create keys to access trend and volatility predictions in the dictionary
-			trend_key = comp + "_trend_pred"
-			volatility_key = comp + "_volatility_pred"
-
-			#store the relationships of the main asset and the comparators in the relationships dictionary
-			asset_rels[trend_key] = trend_prediction
-			asset_rels[volatility_key] = vol_prediction
-
-		#variables to measure the prediction counts
-		trend_up_count = 0
-		trend_down_count = 0
-		vol_up_count = 0
-		vol_down_count = 0
-
-		#get all of the predictions and count them based on their type
-		for comp in comparators:
-			#make sure not to compare the asset with itself
-			if (asset_symbol == comp):
-				pass
-
-			#get the dictionary keys to access the predictions
-			trend_key = comp + "_trend_pred"
-			vol_key = comp + "_volatility_pred"
-
-			#get the predictions of this asset
-			trend_pred = asset_rels[trend_key]
-			vol_pred = asset_rels[vol_key]
-
-			#tally up the predictions for the trends
-			if (trend_pred == "up"):
-				trend_up_count = trend_up_count + 1
-			elif (trend_pred == "down"):
-				trend_down_count = trend_down_count + 1
-
-			#tally up predictions for the volatility
-			if (vol_pred == "up"):
-				vol_up_count = vol_up_count + 1
-			elif (vol_pred == "down"):
-				vol_down_count = vol_down_count + 1
-
-		#get the prediction counts in a dictionary
-		prediction_counts = {"trend_up": trend_up_count, "trend_down": trend_down_count, "vol_up": vol_up_count, "vol_down": vol_down_count}
-
-		#return a dictionary with the predictions of each comparator asset
-		return prediction_counts
-
-	#this is a function to take correlation algorithm data and then make buying/selling decisions based off of this
-	def analyzeAssetData(self, asset_symbol, analyze_present=True, time_frame_unit="hour", time_frame_amount=6, time_offset_unit="hour", time_offset_amount=6):
-		#get the asset class to determine what to compare things to
-		asset = self.alpaca.get_asset(asset_symbol)
-		asset_class = asset.__getattr__("class")
-
-		#get other assets to correlate based on the asset class
-		if (asset_class == "crypto"):
-			other_assets = self.cryptoCoins()
-		elif (asset_class == "us_equity"):
-			other_assets = self.snp500()[:10]
-
-		#calculate the timedelta value based on the time_offset_unit parameter
-		if (time_offset_unit == "minute"):
-			time_offset = timedelta(minutes=time_offset_amount)
-		elif (time_offset_unit == "hour"):
-			time_offset = timedelta(hours=time_offset_amount)
-		elif (time_offset_unit == "day"):
-			time_offset = timedelta(days=time_offset_amount)
-		elif (time_offset_unit == "week"):
-			time_offset = timedelta(weeks=time_offset_amount)
-		elif (time_offset_unit == "month"):
-			time_offset = timedelta(months=time_offset_amount)
-		elif (time_offset_unit == "year"):
-			time_offset = timedelta(years=time_offset_amount)
-
-		#get a different time frame by offsetting the present for a different starting date to go back from
-		past_time_offset = datetime.now() - time_offset
-
-		#alert the programmer of the time frame and time offset
-		print("Using a time frame of", time_frame_amount, time_frame_unit + "(s)")
-		print("Going back", time_offset_amount, time_offset_unit + "(s)", "for comparison of market data.")
-		print("Comparing", datetime.now(), "with a time frame in", past_time_offset)
-		print()
-
-		#get the asset predictions
-		if (analyze_present):
-			asset_predictions = self.predictAsset(asset_symbol, other_assets, time_frame_unit, time_frame_amount)
-		asset_predictions_2 = self.predictAsset(asset_symbol, other_assets, time_frame_unit, time_frame_amount, past_time_offset)
-
-		#get the net predictions for the trend and volatility by taking the difference between the up and down predictions
-		if (analyze_present):
-			trend_prediction = asset_predictions["trend_up"] - asset_predictions["trend_down"]
-			vol_prediction = asset_predictions["vol_up"] - asset_predictions["vol_down"]
-
-		trend_prediction_2 = asset_predictions_2["trend_up"] - asset_predictions_2["trend_down"]
-		vol_prediction_2 = asset_predictions_2["vol_up"] - asset_predictions_2["vol_down"]
-
-		'''
-		#print the prediction data for each time frame
-		print("Prediction Counts for First Time Frame:")
-		print("Trend Up:", asset_predictions["trend_up"])
-		print("Trend Down:", asset_predictions["trend_down"])
-		print("Volatility Up:", asset_predictions["vol_up"])
-		print("Volatility Down:", asset_predictions["vol_down"])
-		print("Net Trend Prediction:", trend_prediction)
-		print("Net Volatility Prediction:", vol_prediction)
-		print()
-
-		print("Prediction Counts for Second Time Frame:")
-		print("Trend Up:", asset_predictions_2["trend_up"])
-		print("Trend Down:", asset_predictions_2["trend_down"])
-		print("Volatility Up:", asset_predictions_2["vol_up"])
-		print("Volatility Down:", asset_predictions_2["vol_down"])
-		print("Net Trend Prediction:", trend_prediction_2)
-		print("Net Volatility Prediction:", vol_prediction_2)
-		print()
-		'''
-
-		#store the net prediction values in dictionaries
-		if (analyze_present):
-			present_prediction = {"trend": trend_prediction, "volatility": vol_prediction}
-		else:
-			present_prediction = None
-		offset_prediction = {"trend": trend_prediction_2, "volatility": vol_prediction_2}
-
-		return present_prediction, offset_prediction
+		#return the trend and volatility prediction of the asset pair
+		return trend_prediction, vol_prediction, trend_relationship, volatility_relationship
 
 	#the callback function for the live stock data
 	async def stockCallback(self, data):
