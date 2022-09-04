@@ -5,6 +5,7 @@ from alpaca_trade_api.rest import TimeFrame, TimeFrameUnit
 from datetime import date, datetime, timedelta
 from pprint import pprint
 import random
+import time
 import math
 import os
 import alpaca_trade_api as alpaca_api
@@ -259,7 +260,7 @@ class Trader:
 		return trend_prediction, vol_prediction, trend_relationship, volatility_relationship
 
 	#this is a function to produce predictions for an asset and weigh the predictions based on their accuracy
-	def crystalBall(self, asset_symbol, timeunit="hour", timeamount=6, timestart=datetime.now()):
+	def crystalBall(self, asset_symbol, timeunit="hour", timeamount=6, timestart=datetime.now(), timeoffset=timedelta(hours=6)):
 		#get the asset class
 		asset = self.alpaca.get_asset(asset_symbol)
 		asset_class = asset.__getattr__("class")
@@ -279,7 +280,7 @@ class Trader:
 			vol_pred_accuracy = 0
 
 			#get the trend predictions, volatility predictions, and relationships
-			trend_prediction, vol_prediction, trend_relationship, vol_relationship = self.predictAsset(asset_symbol, comp, timeunit, timeamount, timestart)
+			trend_prediction, vol_prediction, trend_relationship, vol_relationship = self.predictAsset(asset_symbol, comp, timeunit, timeamount, timestart-timeoffset)
 
 			#get the actual data for this time frame
 			trend, volatility, vol_change = self.getAssetData(asset_symbol, timeunit, timeamount, timestart)
@@ -289,15 +290,11 @@ class Trader:
 				trend_pred_accuracy = trend_pred_accuracy + 1
 			elif (trend == 0 and trend_prediction == "none"):
 				trend_pred_accuracy = trend_pred_accuracy + 1
-			else:
-				trend_pred_accuracy = trend_pred_accuracy - 1
 
 			if ((vol_change > 0 and vol_prediction == "up") or (vol_change < 0 and vol_prediction == "down")):
 				vol_pred_accuracy = vol_pred_accuracy + 1
 			elif (vol_change == 0 and vol_prediction == "none"):
 				vol_pred_accuracy = vol_pred_accuracy + 1
-			else:
-				vol_pred_accuracy = vol_pred_accuracy - 1
 
 			#add prediction data to object containing the predictions and their weighted accuracy
 			trend_pred_key = comp + "_trend"
@@ -313,7 +310,7 @@ class Trader:
 		return weighted_predictions, comparators
 
 	#this is a function that measures multiple weighted predictions in order to create accurate final predictions about trend and volatility
-	def crystalBalls(self, asset_symbol, timeunit="hour", timeamount=6, increments=12):
+	def oracle(self, asset_symbol, timeunit="hour", timeamount=6, increments=12):
 		#GET THE CORRECT TIME START VALUE BASED ON THE TIME PERIOD SPECIFIED
 		if (timeunit == "minute"):
 			timeoffset = timedelta(minutes=timeamount)
@@ -332,12 +329,12 @@ class Trader:
 		prediction_sets = {}
 
 		#LOOP THROUGH THE TIME INCREMENTS TO GET MULTIPLE WEIGHTED PREDICTION SETS
-		for x in range(0, increments):
+		for x in range(1, increments):
 			#GET THE TIMESTART FOR THIS LOOP ITERATION
 			timestart = datetime.now() - (timeoffset*x)
 
 			#GET THE PREDICTION DATA
-			weighted_predictions, comparators = self.crystalBall(asset_symbol, timeunit, timeamount, timestart)
+			weighted_predictions, comparators = self.crystalBall(asset_symbol, timeunit, timeamount, timestart, timeoffset)
 
 			#ADD THE PREDICTION DATA TO AN OBJECT FOR LATER ANALYSIS
 			time_period_key = "pred_set_" + str(x)
@@ -349,11 +346,11 @@ class Trader:
 			#add the weighted predictions to the prediction sets
 			prediction_sets[time_period_key] = weighted_predictions
 
-		#a dictionary to store the final calculated predictions based on weight
-		final_predictions = {"asset": asset_symbol, "trend_up": 0, "trend_down": 0, "trend_same": 0, "vol_up": 0, "vol_down": 0, "vol_same": 0}
+		#make a dictionary to contain the weighted predictions of each correlated asset
+		asset_predictions = {"comparators": []}
 
 		#LOOP THROUGH THE PREDICTIONS TO SET A WEIGHTED VALUE FOR EACH PREDICTION POSSIBILITY
-		for preds in prediction_sets.values():
+		for key, preds in prediction_sets.items():
 			#loop through the comparators for this set to get their prediction values
 			for comp in preds["comparators"]:
 				#get the prediction values
@@ -362,24 +359,72 @@ class Trader:
 				trend_accuracy = preds[comp + "_trend_weight"]
 				vol_accuracy = preds[comp + "_vol_weight"]
 
-				#add this trend prediction to the total weighted prediction
-				if (trend_value == "up"):
-					final_predictions["trend_up"] = final_predictions["trend_up"] + trend_accuracy
-				elif (trend_value == "down"):
-					final_predictions["trend_down"] = final_predictions["trend_down"] + trend_accuracy
-				else:
-					final_predictions["trend_same"] = final_predictions["trend_same"] + trend_accuracy
+				#add accuracy and prediction count values to the dictionary if not already added
+				if (comp+"_trend_accuracy" not in asset_predictions):
+					asset_predictions[comp+"_trend_accuracy"] = 0
 
-				#add this volatility prediction to the total weighted prediction
-				if (vol_value == "up"):
-					final_predictions["vol_up"] = final_predictions["vol_up"] + vol_accuracy
-				elif (vol_value == "down"):
-					final_predictions["vol_down"] = final_predictions["vol_down"] + vol_accuracy
-				else:
-					final_predictions["vol_same"] = final_predictions["vol_same"] + vol_accuracy
+				if (comp+"_vol_accuracy" not in asset_predictions):
+					asset_predictions[comp+"_vol_accuracy"] = 0
+
+				if (comp+"_pred_count" not in asset_predictions):
+					asset_predictions[comp+"_pred_count"] = 0
+
+				#add the accuracy and prediction count to the dictionary
+				asset_predictions[comp+"_trend_accuracy"] = asset_predictions[comp+"_trend_accuracy"] + trend_accuracy
+				asset_predictions[comp+"_vol_accuracy"] = asset_predictions[comp+"_vol_accuracy"] + vol_accuracy
+				asset_predictions[comp+"_pred_count"] = asset_predictions[comp+"_pred_count"] + 1
+
+				if (preds["number"] == 1):
+					asset_predictions[comp+"_trend_pred"] = trend_value
+					asset_predictions[comp+"_vol_pred"] = vol_value
+
+			asset_predictions["comparators"] = asset_predictions["comparators"] + preds["comparators"]
+
+		#make the comparators a unique set
+		asset_predictions["comparators"] = set(asset_predictions["comparators"])
+
+		#make a dictionary for finalized prediction values
+		final_predictions = {"asset": asset_symbol, "trend_up": 0, "trend_down": 0, "trend_same": 0, "vol_up": 0, "vol_down": 0, "vol_same": 0}
+
+		#loop through all involved comparators to get their predictions and accuracies
+		for asset in asset_predictions["comparators"]:
+			trend = asset_predictions[asset+"_trend_pred"]
+			vol = asset_predictions[asset+"_vol_pred"]
+			trend_corr_strength = asset_predictions[asset+"_trend_accuracy"] / asset_predictions[asset+"_pred_count"]
+			vol_corr_strength = asset_predictions[asset+"_vol_accuracy"] / asset_predictions[asset+"_pred_count"]
+
+
+			if (trend == "up"):
+				final_predictions["trend_up"] = final_predictions["trend_up"] + trend_corr_strength
+			elif (trend == "down"):
+				final_predictions["trend_down"] = final_predictions["trend_down"] + trend_corr_strength
+			else:
+				final_predictions["trend_same"] = final_predictions["trend_same"] + trend_corr_strength
+
+			if (vol == "up"):
+				final_predictions["vol_up"] = final_predictions["vol_up"] + vol_corr_strength
+			elif (vol == "down"):
+				final_predictions["vol_down"] = final_predictions["vol_down"] + vol_corr_strength
+			else:
+				final_predictions["vol_same"] = final_predictions["vol_same"] + vol_corr_strength
 
 		return final_predictions
 
+	#a function that makes decisions based on the final weighted predictions of the oracle() function
+	def lohiOracle(self, asset_type, timeunit="hour", timeamount=6, increments=12):
+		#get assets to compare to
+		if (asset_type == "crypto"):
+			tickers = self.cryptoCoins()
+		elif (asset_type == "us_equity"):
+			tickers = self.snp500()[:24]
+
+		#loop through all of the tickers to buy/sell
+		for ticker in tickers:
+			self.oracle(ticker, timeunit, timeamount, increments)
+
+			print("Sleeping for 10 seconds...")
+			print()
+			time.sleep(10)
 		'''
 	ALL FUNCTIONS BELOW THIS ARE FOR BUYING/SELLING AND RETRIEVING RAW DATA ONLY, NO DATA PROCESSING
 	'''
@@ -493,6 +538,7 @@ class Trader:
 			timeframe = TimeFrame.Year
 
 		#make the starting timestamp into an iso timestamp
+		start = start - (15*minute)
 		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
 
 		#make the ending timestamp 15 minutes ago (free subscription does not allow more recent data) and convert to iso timestamp
@@ -838,6 +884,7 @@ class Trader:
 			timeframe = TimeFrame.Year
 
 		#make the starting timestamp into an iso timestamp
+		start = start - (15*minute)
 		start = str(datetime.fromtimestamp(start).isoformat())+"Z"
 
 		#make the ending timestamp 15 minutes ago (free subscription does not allow more recent data) and convert to iso timestamp

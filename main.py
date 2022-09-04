@@ -21,9 +21,18 @@ def main():
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
 
-	predictions = trader_person.crystalBalls("DOGEUSD", "hour", 6, 6)
+	ticker = "SUSHIUSD"
 
+	predictions = trader_person.oracle(ticker, "hour", 1, 6)
+
+	trend, vol, vol_change = trader_person.getAssetData(ticker, "hour", 1)
+
+	print()
+	print("Predictions for", ticker + ":")
 	pprint(predictions)
+	print("Actual Trend:", trend)
+	print("Actual Volatility Change:", vol_change)
+	print()
 
 #execute the main program
 main()
