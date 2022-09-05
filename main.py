@@ -14,14 +14,16 @@ from pprint import pprint
 #main function to execute the entire trading program
 def main():
 	#make a cascade instance and generate a random board
+	'''
 	algo = cascade.Cascade()
 	algo.randomCollapse()
 	boardvalues = algo.boardValues()
+	'''
 
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
 
-	ticker = "SHIBUSD"
+	ticker = "ETHUSD"
 
 	predictions = trader_person.oracle(ticker, "hour", 1, 6)
 
@@ -29,9 +31,12 @@ def main():
 
 	print()
 	print("Predictions for", ticker + ":")
-	pprint(predictions)
+	print("Trend Prediction:", predictions["trend_pred"])
+	print("Volatility Prediction:", predictions["vol_pred"])
 	print("Actual Trend:", trend)
 	print("Actual Volatility Change:", vol_change)
+	print()
+	pprint(predictions)
 	print()
 
 #execute the main program

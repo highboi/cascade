@@ -418,6 +418,26 @@ class Trader:
 			else:
 				final_predictions["vol_same"] = final_predictions["vol_same"] + vol_corr_strength
 
+		#get the finalized prediction of the trend
+		if (final_predictions["trend_up"] > final_predictions["trend_same"] and final_predictions["trend_up"] > final_predictions["trend_down"]):
+			final_predictions["trend_pred"] = "up"
+		elif (final_predictions["trend_same"] > final_predictions["trend_up"] and final_predictions["trend_same"] > final_predictions["trend_down"]):
+			final_predictions["trend_pred"] = "same"
+		elif (final_predictions["trend_down"] > final_predictions["trend_up"] and final_predictions["trend_down"] > final_predictions["trend_same"]):
+			final_predictions["trend_pred"] = "down"
+		else:
+			final_predictions["trend_pred"] = "unsure"
+
+		#get the finalized prediction of the volatility
+		if (final_predictions["vol_up"] > final_predictions["vol_same"] and final_predictions["vol_up"] > final_predictions["vol_down"]):
+			final_predictions["vol_pred"] = "up"
+		elif (final_predictions["vol_same"] > final_predictions["vol_up"] and final_predictions["vol_same"] > final_predictions["vol_down"]):
+			final_predictions["vol_pred"] = "same"
+		elif (final_predictions["vol_down"] > final_predictions["vol_up"] and final_predictions["vol_down"] > final_predictions["vol_same"]):
+			final_predictions["vol_pred"] = "down"
+		else:
+			final_predictions["vol_pred"] = "unsure"
+
 		return final_predictions
 
 	#a function that makes decisions based on the final weighted predictions of the oracle() function
