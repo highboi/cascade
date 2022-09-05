@@ -21,7 +21,7 @@ def main():
 	#make a new trader instance with True as the first parameter to indicate paper trading
 	trader_person = trader.Trader(True)
 
-	ticker = "SUSHIUSD"
+	ticker = "SHIBUSD"
 
 	predictions = trader_person.oracle(ticker, "hour", 1, 6)
 

@@ -213,16 +213,26 @@ class Trader:
 		return trend_rel_pred, vol_rel_pred
 
 	#this is a function that predicts an asset based on another asset
-	def predictAsset(self, asset_symbol, comparator, timeunit="hour", timeamount=6, timestart=datetime.now()):
+	def predictAsset(self, asset_symbol, comparator, timeunit="hour", timeamount=6, timestart=datetime.now(), timeoffset=timedelta(hours=6)):
 		#make sure we are not correlating the asset with itself
 		if (asset_symbol == comparator):
 			pass
 
 		#compare the assets from the past
-		trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timestart)
+		trend_relationship, vol_relationship = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timestart)
 
-		#get the trend and volatility data for this asset
-		trend, volatility, vol_change = self.getAssetData(comparator, timeunit, timeamount, timestart)
+		#get the trend and volatility data from two time periods
+		trend1, vol1, vol_change1 = self.getAssetData(comparator, timeunit, timeamount/2, timestart)
+		trend2, vol2, vol_change2 = self.getAssetData(comparator, timeunit, timeamount/2, timestart-timeoffset)
+
+		trend = trend1 - trend2
+		vol_change = vol1 - vol2
+
+		print()
+		print(asset_symbol, "VS", comparator)
+		print(trend)
+		print(vol_change)
+		print()
 
 		#predict the future trend of the main asset based on the data from this asset and the relationship between them
 		if (trend_relationship == "linear"):
@@ -241,14 +251,14 @@ class Trader:
 				trend_prediction = "none"
 
 		#predict the future volatility of the main asset based on the data from this asset and the relationship between them
-		if (volatility_relationship == "linear"):
+		if (vol_relationship == "linear"):
 			if (vol_change > 0):
 				vol_prediction = "up"
 			elif (vol_change < 0):
 				vol_prediction = "down"
 			else:
 				vol_prediction = "none"
-		elif (volatility_relationship == "inverse"):
+		elif (vol_relationship == "inverse"):
 			if (vol_change > 0):
 				vol_prediction = "down"
 			elif (vol_change < 0):
@@ -257,7 +267,7 @@ class Trader:
 				vol_prediction = "none"
 
 		#return the trend and volatility prediction of the asset pair
-		return trend_prediction, vol_prediction, trend_relationship, volatility_relationship
+		return trend_prediction, vol_prediction, trend_relationship, vol_relationship
 
 	#this is a function to produce predictions for an asset and weigh the predictions based on their accuracy
 	def crystalBall(self, asset_symbol, timeunit="hour", timeamount=6, timestart=datetime.now(), timeoffset=timedelta(hours=6)):
@@ -279,10 +289,10 @@ class Trader:
 			trend_pred_accuracy = 0
 			vol_pred_accuracy = 0
 
-			#get the trend predictions, volatility predictions, and relationships
-			trend_prediction, vol_prediction, trend_relationship, vol_relationship = self.predictAsset(asset_symbol, comp, timeunit, timeamount, timestart-timeoffset)
+			#get the trend predictions, volatility predictions, and relationships for a time increment past the one being examined
+			trend_prediction, vol_prediction, trend_relationship, vol_relationship = self.predictAsset(asset_symbol, comp, timeunit, timeamount, timestart-timeoffset, timeoffset)
 
-			#get the actual data for this time frame
+			#get the actual data for the current time increment
 			trend, volatility, vol_change = self.getAssetData(asset_symbol, timeunit, timeamount, timestart)
 
 			#compare the predictions with actual data to measure accuracy of predictions
