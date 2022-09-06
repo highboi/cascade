@@ -4,9 +4,8 @@ the random numbers are then used to make buying/selling decisions on crypto posi
 '''
 
 #import custom modules for the wave function collapse and the crypto trading functions
-import cascade
-import trader
-import time
+#import cascade
+import analyst
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from pprint import pprint
@@ -21,13 +20,13 @@ def main():
 	'''
 
 	#make a new trader instance with True as the first parameter to indicate paper trading
-	trader_person = trader.Trader(True)
+	trader_person = analyst.Analyst(True)
 
-	ticker = "ETHUSD"
+	ticker = "BTCUSD"
 
 	predictions = trader_person.oracle(ticker, "hour", 1, 6)
 
-	trend, vol, vol_change = trader_person.getAssetData(ticker, "hour", 1)
+	trend, vol, vol_change, vol_trend = trader_person.getAssetData(ticker, "hour", 1)
 
 	print()
 	print("Predictions for", ticker + ":")
@@ -35,6 +34,7 @@ def main():
 	print("Volatility Prediction:", predictions["vol_pred"])
 	print("Actual Trend:", trend)
 	print("Actual Volatility Change:", vol_change)
+	print("Volatility Trend:", vol_trend)
 	print()
 	pprint(predictions)
 	print()
