@@ -13,7 +13,7 @@ Correlation Analysis Theory:
 
 Signal Processing Theory:
 1. The market can be seen as a wave/signal.
-2. The market can be broken down into different frequencies/waves that make the resulting pattern of data.
+2. The market can be broken down into different frequencies/waves that make up the resulting pattern of data.
 3. The frequencies/waves that make up the market can be analyzed by the wavelet transform to identify short-term and long-term patterns.
 4. Repeating patterns or emerging patterns can be used to predict future data and make a profit.
 
