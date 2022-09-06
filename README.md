@@ -25,7 +25,7 @@ algorithm randomly generated a sudoku board, which is a simple example
 that operates on the principle of the wave function collapse. There
 are plenty of examples out there that reveal that random stock trading
 is profitable in the long term. A hedge fund called MonkeyDex used
-a chimp throwing darts to decide which assets to buy. It made a 212%
+a chimp throwing darts to decide which assets to buy. It made a 213%
 return in 1999. A youtuber by the name Michael Reeves used a goldfish
 instead and outcompeted the Nasdaq and Wallstreetbets. While randomness
 is a good strategy (apparently), I am developing theories to solve the
