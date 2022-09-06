@@ -536,7 +536,7 @@ class Trader:
 		end = str(datetime.fromtimestamp(end).isoformat())+"Z"
 
 		#get bars for stocks with a time frame unit of one hour
-		bars = self.alpaca.get_crypto_bars_iter(symbol, TimeFrame.Hour, start, end)
+		bars = self.alpaca.get_crypto_bars_iter(symbol, timeframe, start, end)
 
 		#return the iterable bars
 		return bars

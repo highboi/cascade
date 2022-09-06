@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from pprint import pprint
 import time
 import trader
+import json
 
 #a class to analyze market data and predict the future based on mathematical models
 class Analyst:
@@ -13,7 +14,7 @@ class Analyst:
 		self.trader = trader.Trader(paper)
 
 	#this is a function to get the trend and volatility of a set of market data
-	def getAssetData(self, asset_symbol, timeunit="hour", timeamount=6, timestart=datetime.now()):
+	def getAssetData(self, asset_symbol, timeunit="hour", timeamount=1, timestart=datetime.now()):
 		#get the asset information
 		asset = self.trader.alpaca.get_asset(asset_symbol)
 
@@ -71,7 +72,7 @@ class Analyst:
 		return total_trend, total_volatility, vol_change, vol_trend
 
 	#this is a function to analyze two assets for correlations
-	def correlateAssets(self, benchmark, comparator, timeunit="hour", timeamount=6, timestart=datetime.now()):
+	def correlateAssets(self, benchmark, comparator, timeunit="hour", timeamount=1, timestart=datetime.now()):
 		#get the trend and volatility for the benchmark market data
 		benchmark_trend, benchmark_volatility, benchmark_vol_change, benchmark_vol_trend = self.getAssetData(benchmark, timeunit, timeamount, timestart)
 
@@ -79,13 +80,13 @@ class Analyst:
 		comparator_trend, comparator_volatility, comparator_vol_change, comp_vol_trend = self.getAssetData(comparator, timeunit, timeamount, timestart)
 
 		#calculate the relationship between the trends of the two assets
-		if ((benchmark_trend > 0 and comparator_trend > 0) or (benchmark_trend < 0 and comparator_trend < 0)):
+		if ((benchmark_trend > 0 and comparator_trend > 0) or (benchmark_trend < 0 and comparator_trend < 0) or (benchmark_trend == 0 and comparator_trend == 0)):
 			trend_relationship = "linear"
 		else:
 			trend_relationship = "inverse"
 
 		#calculate the relationship between the volatility of the two assets
-		if ((benchmark_vol_change > 0 and comparator_vol_change > 0) or (benchmark_vol_change < 0 and comparator_vol_change < 0)):
+		if ((benchmark_vol_change > 0 and comparator_vol_change > 0) or (benchmark_vol_change < 0 and comparator_vol_change < 0) or (benchmark_vol_change == 0 and comparator_vol_change == 0)):
 			volatility_relationship = "linear"
 		else:
 			volatility_relationship = "inverse"
@@ -93,173 +94,33 @@ class Analyst:
 		#return the trend and volatility relationship between the two assets
 		return trend_relationship, volatility_relationship
 
-	#this is a function that predicts changes in relationships between assets
-	def predictAssetRel(self, asset_symbol, comparator, timeunit="hour", timeamount=6, timeincrements=6, timestart=datetime.now()):
-		print("Predicting future asset relationship...")
+	#this is a function that returns the data and relationships for an asset over a specific time frame
+	def getAssetPredData(self, asset_symbol, comparator, timeunit="hour", timeamount=1, timestart=datetime.now()):
+		#get the relationship between the asset and the comparator
+		trend_rel, vol_rel = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timestart)
 
-		#make variables for the linearity of the trend and volatility relationship with these two assets
-		trend_linearity = 0
-		volatility_linearity = 0
+		#get the data for the same time frame the relationships were measured
+		trend, vol, vol_change, vol_trend = self.getAssetData(asset_symbol, timeunit, timeamount, timestart)
 
-		#get the relationship between assets over multiple time increments to predict future relationships
-		for x in range(1, timeincrements):
-			#get the right time offset based on the time increment of this iteration of the loop
-			if (timeunit == "minute"):
-				time_offset = timedelta(minutes=timeamount*x)
-			elif (timeunit == "hour"):
-				time_offset = timedelta(hours=timeamount*x)
-			elif (timeunit == "day"):
-				time_offset = timedelta(days=timeamount*x)
-			elif (timeunit == "week"):
-				time_offset = timedelta(weeks=timeamount*x)
-			elif (timeunit == "month"):
-				time_offset = timedelta(months=timeamount*x)
-			elif (timeunit == "year"):
-				time_offset = timedelta(years=timeamount*x)
+		#wrap this data into a dictionary
+		input_data = {
+			"trend": trend,
+			"vol": vol,
+			"vol_change": vol_change,
+			"vol_trend": vol_trend,
+			"trend_rel": trend_rel,
+			"vol_rel": vol_rel
+		}
 
-			#get the starting point for this increment of time
-			timepoint = timestart - time_offset
+		return input_data
 
-			#get the trend relationship for this time period and offset
-			trend_relationship, volatility_relationship = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timepoint)
+	'''
+	THE FUNCTIONS BELOW ARE FOR DATA ANALYTICS AND BACKTESTING OF MODELS
+	'''
 
-			#add to the trend linearity value
-			if (trend_relationship == "linear"):
-				trend_linearity = trend_linearity + 1
-			else:
-				trend_linearity = trend_linearity - 1
-
-			#add to the volatility linearity value
-			if (volatility_relationship == "linear"):
-				volatility_linearity = volatility_linearity + 1
-			else:
-				volatility_linearity = volatility_linearity - 1
-
-		#calculate the relationship prediction for trend
-		if (trend_linearity > 0):
-			trend_rel_pred = "linear"
-		elif (trend_linearity < 0):
-			trend_rel_pred = "inverse"
-		else:
-			trend_rel_pred = "nochange"
-
-		#calculate the relationship prediction for volatility
-		if (volatility_linearity > 0):
-			vol_rel_pred = "linear"
-		elif (volatility_linearity < 0):
-			vol_rel_pred = "inverse"
-		else:
-			vol_rel_pred = "nochange"
-
-		#return the total prediction of the trend and volatility relationships
-		return trend_rel_pred, vol_rel_pred
-
-	#this is a function that predicts an asset based on another asset
-	def predictAsset(self, asset_symbol, comparator, timeunit="hour", timeamount=6, timestart=datetime.now(), timeoffset=timedelta(hours=6)):
-		#make sure we are not correlating the asset with itself
-		if (asset_symbol == comparator):
-			pass
-
-		#compare the assets from the past
-		trend_relationship, vol_relationship = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timestart)
-
-		#get the trend and volatility data from two time periods
-		trend1, vol1, vol_change1, vol_trend1 = self.getAssetData(comparator, timeunit, timeamount, timestart)
-		trend2, vol2, vol_change2, vol_trend2 = self.getAssetData(comparator, timeunit, timeamount, timestart-timeoffset)
-
-		trend = trend1 - trend2
-		vol_change = vol1 - vol2
-		vol_trend_change = vol_trend1 - vol_trend2
-		trend_pred = trend - vol_trend_change
-
-		#predict the future trend of the main asset based on the data from this asset and the relationship between them
-		if (trend_relationship == "linear"):
-			if (trend_pred > 0):
-				trend_prediction = "up"
-			elif (trend_pred < 0):
-				trend_prediction = "down"
-			else:
-				trend_prediction = "none"
-		elif (trend_relationship == "inverse"):
-			if (trend_pred > 0):
-				trend_prediction = "down"
-			elif (trend_pred < 0):
-				trend_prediction = "up"
-			else:
-				trend_prediction = "none"
-
-		#predict the future volatility of the main asset based on the data from this asset and the relationship between them
-		if (vol_relationship == "linear"):
-			if (vol_change > 0):
-				vol_prediction = "up"
-			elif (vol_change < 0):
-				vol_prediction = "down"
-			else:
-				vol_prediction = "none"
-		elif (vol_relationship == "inverse"):
-			if (vol_change > 0):
-				vol_prediction = "down"
-			elif (vol_change < 0):
-				vol_prediction = "up"
-			else:
-				vol_prediction = "none"
-
-		#return the trend and volatility prediction of the asset pair
-		return trend_prediction, vol_prediction, trend_relationship, vol_relationship
-
-	#this is a function to produce predictions for an asset and weigh the predictions based on their accuracy
-	def crystalBall(self, asset_symbol, timeunit="hour", timeamount=6, timestart=datetime.now(), timeoffset=timedelta(hours=6)):
-		#get the asset class
-		asset = self.trader.alpaca.get_asset(asset_symbol)
-		asset_class = asset.__getattr__("class")
-
-		#get the comparators
-		if (asset_class == "crypto"):
-			comparators = self.trader.cryptoCoins()
-		elif (asset_class == "us_equity"):
-			comparators = self.trader.snp500()[:24]
-
-		#an object to add prediction data
-		weighted_predictions = {"asset": asset_symbol}
-
-		#loop through each comparator ticker
-		for comp in comparators:
-			trend_pred_accuracy = 0
-			vol_pred_accuracy = 0
-
-			#get the trend predictions, volatility predictions, and relationships for a time increment past the one being examined
-			trend_prediction, vol_prediction, trend_relationship, vol_relationship = self.predictAsset(asset_symbol, comp, timeunit, timeamount, timestart-timeoffset, timeoffset)
-
-			#get the actual data for the current time increment
-			trend, volatility, vol_change, vol_trend = self.getAssetData(asset_symbol, timeunit, timeamount, timestart)
-
-			#compare the predictions with actual data to measure accuracy of predictions
-			if ((trend > 0 and trend_prediction == "up") or (trend < 0 and trend_prediction == "down")):
-				trend_pred_accuracy = trend_pred_accuracy + 1
-			elif (trend == 0 and trend_prediction == "none"):
-				trend_pred_accuracy = trend_pred_accuracy + 1
-
-			if ((vol_change > 0 and vol_prediction == "up") or (vol_change < 0 and vol_prediction == "down")):
-				vol_pred_accuracy = vol_pred_accuracy + 1
-			elif (vol_change == 0 and vol_prediction == "none"):
-				vol_pred_accuracy = vol_pred_accuracy + 1
-
-			#add prediction data to object containing the predictions and their weighted accuracy
-			trend_pred_key = comp + "_trend"
-			vol_pred_key = comp + "_vol"
-			trend_weight_key = comp + "_trend_weight"
-			vol_weight_key = comp + "_vol_weight"
-
-			weighted_predictions[trend_pred_key] = trend_prediction
-			weighted_predictions[vol_pred_key] = vol_prediction
-			weighted_predictions[trend_weight_key] = trend_pred_accuracy
-			weighted_predictions[vol_weight_key] = vol_pred_accuracy
-
-		return weighted_predictions, comparators
-
-	#this is a function that measures multiple weighted predictions in order to create accurate final predictions about trend and volatility
-	def oracle(self, asset_symbol, timeunit="hour", timeamount=6, increments=12):
-		#GET THE CORRECT TIME START VALUE BASED ON THE TIME PERIOD SPECIFIED
+	#this is a function to gather and store historical market data
+	def gatherData(self, asset_symbol, timeunit="hour", timeamount=1, increments=6, timestart=datetime.now()):
+		#get the correct time offset
 		if (timeunit == "minute"):
 			timeoffset = timedelta(minutes=timeamount)
 		elif (timeunit == "hour"):
@@ -273,123 +134,85 @@ class Analyst:
 		elif (timeunit == "year"):
 			timeoffset = timedelta(years=timeamount)
 
-		#a dictionary to store prediction sets for all time periods
-		prediction_sets = {}
+		#make a dictionary to store the datasets
+		datasets = {"timestart": timestart.timestamp(), "data": []}
 
-		#LOOP THROUGH THE TIME INCREMENTS TO GET MULTIPLE WEIGHTED PREDICTION SETS
-		for x in range(1, increments):
-			#GET THE TIMESTART FOR THIS LOOP ITERATION
-			timestart = datetime.now() - (timeoffset*x)
+		#go over the time increments to extract data
+		for x in range(0, increments):
+			#get the starting point from which to extract data
+			starting_point = timestart - (timeoffset*x)
 
-			#GET THE PREDICTION DATA
-			weighted_predictions, comparators = self.crystalBall(asset_symbol, timeunit, timeamount, timestart, timeoffset)
+			#get data for this time increment
+			trend, vol, vol_change, vol_trend = self.getAssetData(asset_symbol, timeunit, timeamount, starting_point)
 
-			#ADD THE PREDICTION DATA TO AN OBJECT FOR LATER ANALYSIS
-			time_period_key = "pred_set_" + str(x)
+			#a dictionary to store data attributes
+			data_dict = {
+				"number": x,
+				"asset": asset_symbol,
+				"trend": trend,
+				"vol": vol,
+				"vol_change": vol_change,
+				"vol_trend": vol_trend,
+				"starting_point": starting_point.timestamp(),
+				"timeunit": timeunit,
+				"timeamount": timeamount
+			}
 
-			#insert the comparators and iteration number for this prediction set
-			weighted_predictions["comparators"] = comparators
-			weighted_predictions["number"] = x
+			#append this dataset to the dictionary
+			datasets["data"].append(data_dict)
 
-			#add the weighted predictions to the prediction sets
-			prediction_sets[time_period_key] = weighted_predictions
+		#turn the data dictionary into a json object
+		json_datasets = json.dumps(datasets)
 
-		#make a dictionary to contain the weighted predictions of each correlated asset
-		asset_predictions = {"comparators": []}
+		#write the data object into a json file
+		with open("data.json", "r+") as json_file:
+			#load the json file data
+			json_data = json.load(json_file)
 
-		#LOOP THROUGH THE PREDICTIONS TO SET A WEIGHTED VALUE FOR EACH PREDICTION POSSIBILITY
-		for key, preds in prediction_sets.items():
-			#loop through the comparators for this set to get their prediction values
-			for comp in preds["comparators"]:
-				#get the prediction values
-				trend_value = preds[comp + "_trend"]
-				vol_value = preds[comp + "_vol"]
-				trend_accuracy = preds[comp + "_trend_weight"]
-				vol_accuracy = preds[comp + "_vol_weight"]
+			#add the new market data to the current file data
+			json_data["data"].append(json_datasets)
 
-				#add accuracy and prediction count values to the dictionary if not already added
-				if (comp+"_trend_accuracy" not in asset_predictions):
-					asset_predictions[comp+"_trend_accuracy"] = 0
+			#set the position of the file seeker to the beginning (0)
+			json_file.seek(0)
 
-				if (comp+"_vol_accuracy" not in asset_predictions):
-					asset_predictions[comp+"_vol_accuracy"] = 0
+			#dump the new data into the json file
+			json.dump(json_data, json_file, indent=4)
 
-				if (comp+"_pred_count" not in asset_predictions):
-					asset_predictions[comp+"_pred_count"] = 0
+			#close the file
+			json_file.close()
 
-				#add the accuracy and prediction count to the dictionary
-				asset_predictions[comp+"_trend_accuracy"] = asset_predictions[comp+"_trend_accuracy"] + trend_accuracy
-				asset_predictions[comp+"_vol_accuracy"] = asset_predictions[comp+"_vol_accuracy"] + vol_accuracy
-				asset_predictions[comp+"_pred_count"] = asset_predictions[comp+"_pred_count"] + 1
+	#this is a function to read market data from a json file
+	def retrieveData(self, asset_symbol):
+		#retrieve historical data from the json file
+		json_file = open("data.json", "r+")
 
-				if (preds["number"] == 1):
-					asset_predictions[comp+"_trend_pred"] = trend_value
-					asset_predictions[comp+"_vol_pred"] = vol_value
+		#get the json data from the file
+		json_data = json.load(json_file)
 
-			asset_predictions["comparators"] = asset_predictions["comparators"] + preds["comparators"]
+		#an array to store sets of market data
+		market_data = []
 
-		#make the comparators a unique set
-		asset_predictions["comparators"] = set(asset_predictions["comparators"])
+		#loop through the data to find correct data
+		for bars in json_data["data"]:
+			#get the market data
+			bar_data = json.loads(bars)["data"]
 
-		#make a dictionary for finalized prediction values
-		final_predictions = {"asset": asset_symbol, "trend_up": 0, "trend_down": 0, "trend_same": 0, "vol_up": 0, "vol_down": 0, "vol_same": 0}
+			#check to see if this data matches the ticker being analyzed
+			if bar_data[0]["asset"] == asset_symbol:
+				market_data.append(bar_data)
 
-		#loop through all involved comparators to get their predictions and accuracies
-		for asset in asset_predictions["comparators"]:
-			trend = asset_predictions[asset+"_trend_pred"]
-			vol = asset_predictions[asset+"_vol_pred"]
-			trend_corr_strength = asset_predictions[asset+"_trend_accuracy"] / asset_predictions[asset+"_pred_count"]
-			vol_corr_strength = asset_predictions[asset+"_vol_accuracy"] / asset_predictions[asset+"_pred_count"]
+		#return the market data for analysis
+		return market_data
 
+	#this is a function to compare historical data with predictions
+	def backtest(self, asset_symbol):
+		#get historical data for this ticker
+		market_data = self.retrieveData(asset_symbol)
 
-			if (trend == "up"):
-				final_predictions["trend_up"] = final_predictions["trend_up"] + trend_corr_strength
-			elif (trend == "down"):
-				final_predictions["trend_down"] = final_predictions["trend_down"] + trend_corr_strength
-			else:
-				final_predictions["trend_same"] = final_predictions["trend_same"] + trend_corr_strength
-
-			if (vol == "up"):
-				final_predictions["vol_up"] = final_predictions["vol_up"] + vol_corr_strength
-			elif (vol == "down"):
-				final_predictions["vol_down"] = final_predictions["vol_down"] + vol_corr_strength
-			else:
-				final_predictions["vol_same"] = final_predictions["vol_same"] + vol_corr_strength
-
-		#get the finalized prediction of the trend
-		if (final_predictions["trend_up"] > final_predictions["trend_same"] and final_predictions["trend_up"] > final_predictions["trend_down"]):
-			final_predictions["trend_pred"] = "up"
-		elif (final_predictions["trend_same"] > final_predictions["trend_up"] and final_predictions["trend_same"] > final_predictions["trend_down"]):
-			final_predictions["trend_pred"] = "same"
-		elif (final_predictions["trend_down"] > final_predictions["trend_up"] and final_predictions["trend_down"] > final_predictions["trend_same"]):
-			final_predictions["trend_pred"] = "down"
-		else:
-			final_predictions["trend_pred"] = "unsure"
-
-		#get the finalized prediction of the volatility
-		if (final_predictions["vol_up"] > final_predictions["vol_same"] and final_predictions["vol_up"] > final_predictions["vol_down"]):
-			final_predictions["vol_pred"] = "up"
-		elif (final_predictions["vol_same"] > final_predictions["vol_up"] and final_predictions["vol_same"] > final_predictions["vol_down"]):
-			final_predictions["vol_pred"] = "same"
-		elif (final_predictions["vol_down"] > final_predictions["vol_up"] and final_predictions["vol_down"] > final_predictions["vol_same"]):
-			final_predictions["vol_pred"] = "down"
-		else:
-			final_predictions["vol_pred"] = "unsure"
-
-		return final_predictions
-
-	#a function that makes decisions based on the final weighted predictions of the oracle() function
-	def lohiOracle(self, asset_type, timeunit="hour", timeamount=6, increments=12):
-		#get assets to compare to
-		if (asset_type == "crypto"):
-			tickers = self.trader.cryptoCoins()
-		elif (asset_type == "us_equity"):
-			tickers = self.trader.snp500()[:24]
-
-		#loop through all of the tickers to buy/sell
-		for ticker in tickers:
-			self.oracle(ticker, timeunit, timeamount, increments)
-
-			print("Sleeping for 10 seconds...")
-			print()
-			time.sleep(10)
+		#loop through all of the market data sets
+		for data in market_data:
+			#loop through this market data set
+			for index in range(len(data)-1):
+				#get two increments of data to compare
+				bar = data[index]
+				bar2 = data[index+1])
