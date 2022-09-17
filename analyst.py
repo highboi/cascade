@@ -3,6 +3,10 @@ This is a module to contain the data analytics functions of cascade for quantita
 '''
 from datetime import datetime, timedelta
 from pprint import pprint
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+import pywt
 import time
 import trader
 import json
@@ -33,8 +37,12 @@ class Analyst:
 
 		vol_trend = 0
 
+		bars_array = []
+
 		#analyze the market data
 		for bar in bars:
+			bars_array.append(bar)
+
 			#calculate trend
 			trend = bar.c - bar.o
 
@@ -69,15 +77,15 @@ class Analyst:
 			prev_volatility = percent_volatility
 
 		#return the total percent trend and total volatility
-		return total_trend, total_volatility, vol_change, vol_trend
+		return bars_array, total_trend, total_volatility, vol_change, vol_trend
 
 	#this is a function to analyze two assets for correlations
 	def correlateAssets(self, benchmark, comparator, timeunit="hour", timeamount=1, timestart=datetime.now()):
 		#get the trend and volatility for the benchmark market data
-		benchmark_trend, benchmark_volatility, benchmark_vol_change, benchmark_vol_trend = self.getAssetData(benchmark, timeunit, timeamount, timestart)
+		benchmark_bars, benchmark_trend, benchmark_volatility, benchmark_vol_change, benchmark_vol_trend = self.getAssetData(benchmark, timeunit, timeamount, timestart)
 
 		#get the trend and volatility for the comparator market data
-		comparator_trend, comparator_volatility, comparator_vol_change, comp_vol_trend = self.getAssetData(comparator, timeunit, timeamount, timestart)
+		comparator_bars, comparator_trend, comparator_volatility, comparator_vol_change, comp_vol_trend = self.getAssetData(comparator, timeunit, timeamount, timestart)
 
 		#calculate the relationship between the trends of the two assets
 		if ((benchmark_trend > 0 and comparator_trend > 0) or (benchmark_trend < 0 and comparator_trend < 0) or (benchmark_trend == 0 and comparator_trend == 0)):
@@ -95,15 +103,16 @@ class Analyst:
 		return trend_relationship, volatility_relationship
 
 	#this is a function that returns the data and relationships for an asset over a specific time frame
-	def getAssetPredData(self, asset_symbol, comparator, timeunit="hour", timeamount=1, timestart=datetime.now()):
+	def getAssetPairData(self, asset_symbol, comparator, timeunit="hour", timeamount=1, timestart=datetime.now()):
 		#get the relationship between the asset and the comparator
 		trend_rel, vol_rel = self.correlateAssets(asset_symbol, comparator, timeunit, timeamount, timestart)
 
 		#get the data for the same time frame the relationships were measured
-		trend, vol, vol_change, vol_trend = self.getAssetData(asset_symbol, timeunit, timeamount, timestart)
+		bars, trend, vol, vol_change, vol_trend = self.getAssetData(asset_symbol, timeunit, timeamount, timestart)
 
 		#wrap this data into a dictionary
 		input_data = {
+			"bars": bars,
 			"trend": trend,
 			"vol": vol,
 			"vol_change": vol_change,
@@ -113,6 +122,94 @@ class Analyst:
 		}
 
 		return input_data
+
+	#analyze data to make a prediction
+	def predictAssetPair(self, asset_symbol, comparator, timeunit="hour", timeamount=8, timestart=datetime.now()):
+		#get stock data for this pair of asset data
+		asset_pair_data = self.getAssetPairData(asset_symbol, comparator, timeunit, timeamount, timestart)
+
+		x_values = []
+		y_values = []
+
+		high_median = 0
+		low_median = 0
+		medians = []
+
+		#loop through market data to plot the data as a wave
+		for increment in range(len(asset_pair_data["bars"])):
+			#calculate the x values for this set of data
+			start_x = 50*increment
+			end_x = start_x+50
+			fourth_x = start_x + ( (end_x-start_x)/4 )
+			mid_x = start_x + ( (end_x-start_x)/2 )
+			three_fourth_x = start_x + ( ((end_x-start_x)/4)*3 )
+
+			#get the current bar of asset data
+			bar = asset_pair_data["bars"][increment]
+
+			#get the x and y values to depict this bar of data
+			x_values = x_values + [start_x, fourth_x, mid_x, three_fourth_x, end_x]
+			y_values = y_values + [bar.o, bar.h, bar.vw, bar.l, bar.c]
+
+			#calculate the median value for the high and low of this bar of data
+			median = (bar.h - bar.l) / 2
+			median = bar.l + median
+
+			medians.append(median)
+
+			#calculate and update the highest median and lowest median value for this set of bars
+			if (median > high_median):
+				high_median = median
+			elif (median < low_median or low_median == 0):
+				low_median = median
+
+		#calculate the different median segments
+		segment_increment = (high_median - low_median) / len(asset_pair_data["bars"])
+		segment_increments = []
+		for segment in range(len(asset_pair_data["bars"])+1):
+			segment_increments.append(low_median + (segment_increment*segment))
+
+		bar_sections = {}
+
+		for segment in segment_increments:
+			bar_sections[str(segment)] = []
+
+		#categorize bars of data into different segments
+		for bar in asset_pair_data["bars"]:
+			close_value = 0
+
+			print("***")
+			for segment in segment_increments:
+				median = bar.h - bar.l / 2
+				median = bar.l + median
+
+				print(close_value)
+
+				if (close_value == 0):
+					close_value = segment
+
+				if (abs(median - segment) < abs(median - close_value)):
+					close_value = segment
+
+			print(close_value)
+			print()
+
+		#plot the values of market data
+		plt.plot(x_values, y_values)
+
+		#plot lines to separate each increment of data
+		for val in range(math.floor(len(x_values)/5)):
+			plt.axvline(x_values[val*5])
+
+		#plot lines to depict the median value (high - low) of each bar of market data
+		for median in medians:
+			plt.axhline(median)
+
+		#get the approximation and detail coefficients of the market data
+		(A, D) = pywt.dwt(y_values, "db1")
+
+		#plot the graph
+		plt.show()
 
 	'''
 	THE FUNCTIONS BELOW ARE FOR DATA ANALYTICS AND BACKTESTING OF MODELS
@@ -143,11 +240,12 @@ class Analyst:
 			starting_point = timestart - (timeoffset*x)
 
 			#get data for this time increment
-			trend, vol, vol_change, vol_trend = self.getAssetData(asset_symbol, timeunit, timeamount, starting_point)
+			bars, trend, vol, vol_change, vol_trend = self.getAssetData(asset_symbol, timeunit, timeamount, starting_point)
 
 			#a dictionary to store data attributes
 			data_dict = {
 				"number": x,
+				"bars": bars,
 				"asset": asset_symbol,
 				"trend": trend,
 				"vol": vol,
@@ -203,16 +301,3 @@ class Analyst:
 
 		#return the market data for analysis
 		return market_data
-
-	#this is a function to compare historical data with predictions
-	def backtest(self, asset_symbol):
-		#get historical data for this ticker
-		market_data = self.retrieveData(asset_symbol)
-
-		#loop through all of the market data sets
-		for data in market_data:
-			#loop through this market data set
-			for index in range(len(data)-1):
-				#get two increments of data to compare
-				bar = data[index]
-				bar2 = data[index+1])
