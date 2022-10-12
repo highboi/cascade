@@ -1,4 +1,4 @@
-Cascade - Quant-um Stock Trading
+# Cascade - Quant-um Stock Trading
 
 ![Cascade Logo](https://github.com/highboi/cascade/blob/master/cascade_logo.png)
 
