@@ -27,5 +27,7 @@ def main():
 
 	analyzer.predictAssetPair(ticker, "BTCUSD")
 
+	analyzer.predictAssetPair(ticker, "ETHUSD")
+
 #execute the main program
 main()

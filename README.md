@@ -1,5 +1,7 @@
 Cascade - Quant-um Stock Trading
 
+![Cascade Logo](https://github.com/highboi/cascade/blob/master/cascade_logo.png)
+
 This is a python program which uses quantitative investment strategies
 and technical analysis to predict the future of the market. The two
 theories I have developed (and their conjectures) are as follows:
